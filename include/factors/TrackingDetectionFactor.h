@@ -43,6 +43,7 @@ namespace libRSF
   class TrackingDetectionFactor : public BaseFactor<ErrorType, true, false, 3>
   {
     public:
+
       /** construct factor and store error model */
       TrackingDetectionFactor(ErrorType &Error, const Data &PriorMeasurement)
       {
@@ -57,7 +58,9 @@ namespace libRSF
                              const Vector3 &PriorValue) const
       {
         VectorRefConst<T, 3> PositionState(PositionStatePointer);
+
         return PositionState - PriorValue;
+        // return PositionState;
       }
 
       /** combine probabilistic and geometric model */

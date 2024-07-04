@@ -35,6 +35,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <iostream>
 
 namespace libRSF
 {
@@ -61,7 +62,7 @@ namespace libRSF
       {
         for (InitType &Init : InitialConfig)
         {
-          TypeMap_.emplace(Init.Type, Init.Elements);
+          TypeMap_.emplace(Init.Type, Init.Elements); //Init.Elements每个参数的初始维度
           NameTypeMap_.emplace(Init.Name, Init.Type);
           TypeNameMap_.emplace(Init.Type, Init.Name);
         }
@@ -78,17 +79,40 @@ namespace libRSF
 
       TypeEnum getType(std::string Name) const
       {
+        // std::cout << "123  " << NameTypeMap_.at(Name) << std::endl;
+        /**
+         * 返回因子类型对应的enum值
+        */
         return NameTypeMap_.at(Name);
       }
-
+      
+      
       /** check type or string */
       [[nodiscard]] bool checkName(std::string Name) const
       {
+        // std::cout << "NameTypeMap Size: " << NameTypeMap_.size() << std::endl; 
+        // for (auto it = NameTypeMap_.begin(); it != NameTypeMap_.end(); it++) {
+        //     std::cout << it->first << "\t" << it->second << std::endl;
+        // }
+        // std::cout << std::endl;
+        
+        /**
+         * NameTypeMap_是包含53组键值对的map，
+         * 键是因子名称，值是因子类型，e.g. imu->42, range2->22, point3->2...
+         */ 
         return (NameTypeMap_.count(Name) > 0);
       }
 
       bool checkType(TypeEnum Type) const
       {
+        // for (auto it = TypeNameMap_.begin(); it != TypeNameMap_.end(); it++) {
+        //     std::cout << it->first << "\t" << it->second << std::endl;
+        // }
+        // std::cout << std::endl;
+        /**
+         * TypeNameMap_是包含53组键值对的map，
+         * 键是因子类型，值是因子名称. e.g. 22->range2
+        */
         return (TypeNameMap_.count(Type) > 0);
       }
 
@@ -106,7 +130,17 @@ namespace libRSF
     private:
       std::map<std::string, TypeEnum> NameTypeMap_;
       std::map<TypeEnum, std::string> TypeNameMap_;
-      std::map<TypeEnum, ConfigType> TypeMap_;
+      std::map<TypeEnum, ConfigType> TypeMap_; // ConfigType是初始化向量的尺寸，e.g. 
+        /**
+         * "odom2diff", DataType::Odom2Diff,
+        {
+            {DataElement::Timestamp, 1},
+            {DataElement::Mean, 3},
+            {DataElement::WheelBase, 1},
+            {DataElement::CovarianceDiagonal , 3}
+        }
+        * 是1,3,1,3.所以就将ConfigType初始化为同样大小的向量Vector
+        */
   };
 }
 

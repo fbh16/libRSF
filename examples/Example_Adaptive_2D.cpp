@@ -48,8 +48,7 @@ void SaveResult(libRSF::FactorGraph &Graph,
   }
 }
 
-
-int main(int ArgC, char** ArgV)
+int main(int ArgC, char ** ArgV)
 {
   google::InitGoogleLogging(*ArgV);
 
@@ -128,23 +127,23 @@ int main(int ArgC, char** ArgV)
                                                  libRSF::StateID(ORIENTATION_STATE, TimePrev),
                                                  libRSF::StateID(POSITION_STATE, TimeNow),
                                                  libRSF::StateID(ORIENTATION_STATE, TimeNow),
-                                                 Odom, GaussianOdom);
+                                                 Odom,
+                                                 GaussianOdom);
     }
 
     /** get range measurements */
     const std::vector<libRSF::Data> Ranges = Measurements.getElements(libRSF::DataType::Range2, TimeNow);
 
     /** add range measurements */
-    for (const libRSF::Data &Range: Ranges)
+    for (const libRSF::Data &Range : Ranges)
     {
       AddRange(Graph, Range, TimeNow);
     }
 
     TimePrev = TimeNow;
-  }
-  while (Measurements.getTimeNext(libRSF::DataType::Range2, TimePrev, TimeNow));
+  } while (Measurements.getTimeNext(libRSF::DataType::Range2, TimePrev, TimeNow));
 
-  /** create initial GMM*/
+  /** create initial GMM */
   libRSF::GaussianMixture<1> GMM;
 
   /** create density estimation config */
@@ -176,8 +175,10 @@ int main(int ArgC, char** ArgV)
 
     /** adapt error model */
     const int CompBefore = GMM.getNumberOfComponents();
+     //* Expectation-Maximum
     GMM.estimate(Residuals, GMMConfig);
     const int CompAfter = GMM.getNumberOfComponents();
+
     const libRSF::MaxSumMix1 MixtureNoise(GMM);
     Graph.setNewErrorModel(libRSF::FactorType::Range2, MixtureNoise);
 
@@ -185,7 +186,7 @@ int main(int ArgC, char** ArgV)
     Graph.solve(Config.SolverConfig);
 
     /** define time offset to distinguish iterations*/
-    const double TimeOffset = nAdapt*100000;
+    const double TimeOffset = nAdapt * 100000;
 
     /** export position to result set*/
     SaveResult(Graph, Result, TimeOffset);

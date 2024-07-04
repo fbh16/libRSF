@@ -49,6 +49,8 @@ int main(int ArgC, char** ArgV)
   /** add gravity */
   MeanIMU(2) += 9.81;
 
+  std::cout << MeanIMU << std::endl; 
+
   /** create sensor object */
   libRSF::Data IMU(libRSF::DataType::IMU, dt);
   IMU.setMean(MeanIMU);

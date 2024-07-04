@@ -20,7 +20,7 @@
  * Author: Tim Pfeifer (tim.pfeifer@etit.tu-chemnitz.de)
  ***************************************************************************/
 
- /**
+/**
  * @file Example_EM_2D.cpp
  * @author Tim Pfeifer
  * @date 12.03.2021
@@ -31,13 +31,13 @@
 
 #include "Example_GMM_Estimation.h"
 
-int main(int ArgC, char** ArgV)
+int main(int ArgC, char ** ArgV)
 {
   (void)ArgC;
   google::InitGoogleLogging(*ArgV);
 
   /** define distribution parameter */
-  const int N = 1000;
+  const int N = 100;
   const int NumberOfComponents = 5;
 
   /** define component 1 */
@@ -48,13 +48,17 @@ int main(int ArgC, char** ArgV)
   /** define component 2 */
   const libRSF::Vector2 Mean2 = libRSF::Vector2::Ones() * 5.0;
   libRSF::Matrix22 Cov2 = libRSF::Matrix22::Identity() * 9.0;
-  Cov2(1,1) = 16;
+  Cov2(1, 1) = 16;
   const libRSF::Vector1 Weight2 = libRSF::Vector1::Ones() - Weight1;
 
   /** create data */
   const libRSF::Matrix Samples = GenerateSamplesGMM<2>(N,
-                                                    -Mean1,Cov1,Weight1,
-                                                    -Mean2,Cov2,Weight2);
+                                                       -Mean1,
+                                                       Cov1,
+                                                       Weight1,
+                                                       -Mean2,
+                                                       Cov2,
+                                                       Weight2);
 
   /** initialize GMM */
   libRSF::GaussianMixture<2> GMM_true;
@@ -91,6 +95,8 @@ int main(int ArgC, char** ArgV)
 
   ConfigVBI_Full.EstimationAlgorithm = libRSF::ErrorModelTuningType::VBI_Full;
   ConfigVBI_Full.RemoveSmallComponents = true;
+
+//   std::cout << Samples.cols() << "\t" << Samples.rows() << std::endl;
 
   /** fit mixture to data */
   libRSF::Timer Timer;

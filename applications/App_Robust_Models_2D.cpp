@@ -20,22 +20,22 @@
  * Author: Tim Pfeifer (tim.pfeifer@etit.tu-chemnitz.de)
  ***************************************************************************/
 
- /**
-* @file App_Robust_Models_2D.cpp
-* @author Tim Pfeifer
-* @date 27.08.2019
-* @brief An simple application to evaluate the robust error functions in 2D.
-* @copyright GNU Public License.
-*
-*/
+/**
+ * @file App_Robust_Models_2D.cpp
+ * @author Tim Pfeifer
+ * @date 27.08.2019
+ * @brief An simple application to evaluate the robust error functions in 2D.
+ * @copyright GNU Public License.
+ *
+ */
 
 #include "App_Robust_Models_2D.h"
 
-int CreateGraphAndSolve(std::vector<std::string> &Arguments,
-                       libRSF::StateDataSet &CostSurfaceData,
-                       libRSF::StateDataSet &PreOptimizationData,
-                       libRSF::StateDataSet &PostOptimizationData,
-                       libRSF::StateDataSet &SolverData)
+int CreateGraphAndSolve(std::<std::string> &Arguments,
+                        libRSF::StateDataSet &CostSurfaceData,
+                        libRSF::StateDataSet &PreOptimizationData,
+                        libRSF::StateDataSet &PostOptimizationData,
+                        libRSF::StateDataSet &SolverData)
 {
   /** parse testing parameter */
   const int NumberPoints = std::stoi(Arguments.at(3));
@@ -49,9 +49,9 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
 
   libRSF::Matrix22 StdDev1, StdDev2;
   StdDev1 << std::stod(Arguments.at(10)), std::stod(Arguments.at(11)),
-             std::stod(Arguments.at(12)), std::stod(Arguments.at(13));
+      std::stod(Arguments.at(12)), std::stod(Arguments.at(13));
   StdDev2 << std::stod(Arguments.at(14)), std::stod(Arguments.at(15)),
-             std::stod(Arguments.at(16)), std::stod(Arguments.at(17));
+      std::stod(Arguments.at(16)), std::stod(Arguments.at(17));
 
   libRSF::Vector1 Weight1, Weight2;
   Weight1 << std::stod(Arguments.at(18));
@@ -79,7 +79,7 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
 
   /** configure Gaussian error model */
   libRSF::GaussianFull<2> Noise;
-  Noise.setCovarianceMatrix(StdDev1.transpose()*StdDev1);
+  Noise.setCovarianceMatrix(StdDev1.transpose() * StdDev1);
 
   /** configure Gaussian Identity model for cDCE */
   libRSF::GaussianDiagonal<2> NoiseIdentity;
@@ -89,10 +89,10 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
   libRSF::GaussianComponent<2> Gaussian;
   libRSF::GaussianMixture<2> GMM;
   /** component 1 */
-  Gaussian.setParamsCovariance(StdDev1.transpose()*StdDev1, Mean1, Weight1);
+  Gaussian.setParamsCovariance(StdDev1.transpose() * StdDev1, Mean1, Weight1);
   GMM.addComponent(Gaussian);
   /** component 2*/
-  Gaussian.setParamsCovariance(StdDev2.transpose()*StdDev2, Mean2, Weight2);
+  Gaussian.setParamsCovariance(StdDev2.transpose() * StdDev2, Mean2, Weight2);
   GMM.addComponent(Gaussian);
 
   /** create zero-measurement */
@@ -172,10 +172,10 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
 
       /** save solution information */
       SolverData.addElement(SOLVE_TIME_STATE, libRSF::DataType::IterationSummary, 0.0);
-      SolverData.getElement(SOLVE_TIME_STATE, 0.0, nPointX*NumberPoints+nPointY).setValueScalar(libRSF::DataElement::DurationSolver, SimpleGraph.getSolverDurationAndReset());
-      SolverData.getElement(SOLVE_TIME_STATE, 0.0, nPointX*NumberPoints+nPointY).setValueScalar(libRSF::DataElement::IterationSolver, SimpleGraph.getSolverIterationsAndReset());
+      SolverData.getElement(SOLVE_TIME_STATE, 0.0, nPointX * NumberPoints + nPointY).setValueScalar(libRSF::DataElement::DurationSolver, SimpleGraph.getSolverDurationAndReset());
+      SolverData.getElement(SOLVE_TIME_STATE, 0.0, nPointX * NumberPoints + nPointY).setValueScalar(libRSF::DataElement::IterationSolver, SimpleGraph.getSolverIterationsAndReset());
 
-      libRSF::PrintProgress((100.0*nPointX)/NumberPoints);
+      libRSF::PrintProgress((100.0 * nPointX) / NumberPoints);
     }
   }
 
@@ -188,9 +188,9 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
   return 0;
 }
 
-#ifndef TESTMODE // only compile main if not used in test context
+#ifndef TESTMODE  // only compile main if not used in test context
 
-int main(int argc, char** argv)
+int main(int argc, char ** argv)
 {
   /** init google logging for ceres */
   google::InitGoogleLogging(*argv);
@@ -206,7 +206,7 @@ int main(int argc, char** argv)
   libRSF::StateDataSet PostOptimizationData;
   libRSF::StateDataSet SolverData;
 
-  if (CreateGraphAndSolve(Arguments,CostSurfaceData,PreOptimizationData,PostOptimizationData,SolverData) != 0)
+  if (CreateGraphAndSolve(Arguments, CostSurfaceData, PreOptimizationData, PostOptimizationData, SolverData) != 0)
   {
     return 1;
   }
@@ -220,4 +220,4 @@ int main(int argc, char** argv)
   return 0;
 }
 
-#endif // TESTMODE
+#endif  // TESTMODE

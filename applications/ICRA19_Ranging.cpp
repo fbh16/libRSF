@@ -110,6 +110,15 @@ void AddRangeMeasurements2D(libRSF::FactorGraph &Graph,
   static libRSF::GaussianMixture<1> GMM((libRSF::Vector2() << 0, 0).finished(),
                                          (libRSF::Vector2() << 0.1, 1.0).finished(),
                                          (libRSF::Vector2() << 0.5, 0.5).finished());
+////////
+    // std::vector<libRSF::GaussianComponent<1>> Mixture;
+    // GMM.getMixture(Mixture);
+    // for (int i = 0; i < Mixture.size(); i++) {
+    //     std::cout << "Mean:\n" << Mixture.at(i).getMean() 
+    //               << "\nWeight:\n" << Mixture.at(i).getWeight() 
+    //               << "\nCovariance:\n" << Mixture.at(i).getCovariance() << std::endl;
+    // }
+////////
 
   /** get measurement */
   Range = Measurements.getElement(libRSF::DataType::Range2, Timestamp, 0);
@@ -189,12 +198,13 @@ void TuneErrorModel(libRSF::FactorGraph &Graph,
       }
     }
 
-    libRSF::Matrix ErrorData;
+    libRSF::Matrix ErrorData; //todo: 具体物理意义?
     Graph.computeUnweightedErrorMatrix(libRSF::FactorType::Range2, ErrorData);
 
     /** call the EM algorithm */
     libRSF::GaussianMixture<1>::EstimationConfig GMMConfig;
     GMMConfig.EstimationAlgorithm = libRSF::ErrorModelTuningType::EM;
+    GMMConfig.MinimalSamples = 1;
     GMM.estimate(ErrorData, GMMConfig);
 
     /** apply error model */
@@ -261,6 +271,7 @@ bool ParseErrorModel(const std::string &ErrorModel, libRSF::FactorGraphConfig &C
   return true;
 }
 
+
 int main(int argc, char** argv)
 {
   google::InitGoogleLogging(*argv);
@@ -325,7 +336,6 @@ int main(int argc, char** argv)
   /** iterate over timestamps */
   while(InputData.getTimeNext(libRSF::DataType::Range2, Timestamp, Timestamp))
   {
-
     /** add required states */
     Graph.addState(POSITION_STATE, libRSF::DataType::Point2, Timestamp);
     Graph.addState(ORIENTATION_STATE, libRSF::DataType::Angle, Timestamp);
@@ -350,6 +360,8 @@ int main(int argc, char** argv)
     /** save data after optimization */
     Result.addElement(POSITION_STATE, Graph.getStateData().getElement(POSITION_STATE, Timestamp, 0));
 
+    // std::cout << Graph.getStateData().getElement(POSITION_STATE, Timestamp, 0).getNameValueString() << std::endl;
+
     /** apply sliding window */
     Graph.removeAllFactorsOutsideWindow(60, Timestamp);
     Graph.removeAllStatesOutsideWindow(60, Timestamp);
@@ -361,10 +373,10 @@ int main(int argc, char** argv)
   }
 
   /** print last report */
-  Graph.printReport();
+//   Graph.printReport();
 
   /** write results to disk */
-  libRSF::WriteDataToFile(Config.OutputFile, POSITION_STATE, Result);
+//   libRSF::WriteDataToFile(Config.OutputFile, POSITION_STATE, Result);
 
   return 0;
 }

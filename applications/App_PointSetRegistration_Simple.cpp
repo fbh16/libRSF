@@ -207,7 +207,7 @@ int main(int ArgC, char** ArgV)
   TimeOld = TimeNew;
 
   /** add first states to graph */
-  Graph.addState(POSE_STATE,libRSF::DataType::Pose2, TimeNew);
+  Graph.addState(POSE_STATE, libRSF::DataType::Pose2, TimeNew);
 
   /** get first set of points */
   std::vector<libRSF::Data> PointsNew, PointsOld;

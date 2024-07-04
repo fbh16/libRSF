@@ -47,10 +47,10 @@ int main(int argc, char** argv)
     std::cout << std::endl;
     return 1;
   }
-
+  std::cout << Config.InputFile << std::endl;
   /** read input data */
   libRSF::SensorDataSet InputData;
-  libRSF::ReadDataFromFile(Config.InputFile, InputData);
+  libRSF::ReadDataFromFile("../datasets/UrbanNav/UrbanNav_TK_Obaida/UrbanNav_TK_Obaida_Input.txt", InputData);
 
   /** Build optimization problem from sensor data */
   libRSF::FactorGraph Graph;
@@ -122,7 +122,7 @@ int main(int argc, char** argv)
     if(InputData.getElement(libRSF::DataType::Point3, TimestampOld, 0, PositionMeasurement))
     {
       libRSF::StateList PositionStates;
-      PositionStates.add(POSITION_STATE,TimestampOld);
+      PositionStates.add(POSITION_STATE, TimestampOld);
 
       const libRSF::Matrix33 CovMat = PositionMeasurement.getCovarianceMatrix();
       libRSF::GaussianFull<3> PosNoise;

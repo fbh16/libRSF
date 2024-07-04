@@ -58,9 +58,14 @@ namespace libRSF
     {
       /** map vector to matrix */
       Vector CovVect = this->getValue(DataElement::Covariance);
-      MatrixRef<double, Dynamic, Dynamic> Cov(CovVect.data(),
-                                              static_cast<int>(sqrt(static_cast<double>(CovVect.size()))),
-                                              static_cast<int>(sqrt(static_cast<double>(CovVect.size()))));
+
+    //   MatrixRef<double, Dynamic, Dynamic> Cov(CovVect.data(),
+    //                                           static_cast<int>(sqrt(static_cast<double>(CovVect.size()))),
+    //                                           static_cast<int>(sqrt(static_cast<double>(CovVect.size()))));      
+
+      Eigen::MatrixXd DiagCov = CovVect.asDiagonal().toDenseMatrix();
+      MatrixRef<double, Dynamic, Dynamic> Cov(DiagCov.data(), DiagCov.rows(), DiagCov.cols());
+
       return Cov;
     }
     if (this->checkElement(DataElement::CovarianceDiagonal))
@@ -121,12 +126,15 @@ namespace libRSF
 
   void Data::setCovarianceDiagonal(const Vector& Cov)
   {
-    if (this->checkElement(DataElement::Covariance) && this->getValue(DataElement::Covariance).size() == 1)
+    // if (this->checkElement(DataElement::Covariance) && this->getValue(DataElement::Covariance).size() == 1)
+    if (this->checkElement(DataElement::Covariance))
     {
+    //   std::cout << "Covariance" << std::endl; 
       this->setValue(DataElement::Covariance, Cov);
     }
     else
     {
+        // std::cout << "CovarianceDiagonal" << std::endl; 
       this->setValue(DataElement::CovarianceDiagonal, Cov);
     }
   }
@@ -151,4 +159,5 @@ namespace libRSF
   {
     this->setCovarianceDiagonal(StdDev.array().square());
   }
+
 }

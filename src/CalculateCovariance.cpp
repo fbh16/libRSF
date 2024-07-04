@@ -87,7 +87,8 @@ namespace libRSF
                            const double Timestamp,
                            const int StateNumber)
   {
-
+    std::cout << "789898798789878987898789879878\n789898798789878987898789879878\n789898798789878987898789879878" << std::endl;
+    std::cout << "StateNumber: " << StateNumber << std::endl;
     /** create covariance object */
     ceres::Covariance::Options CovOptions;
     CovOptions.num_threads = static_cast<int>(std::thread::hardware_concurrency());
@@ -97,13 +98,15 @@ namespace libRSF
     /** create covariance block for each Position */
     std::vector<const double*> ParameterBlock;
 
-    if (States.countElement(Type, Timestamp) == 1)
+    // if (States.countElement(Type, Timestamp) == 1)
+    if (States.checkElement(Type, Timestamp, StateNumber))//更改指出
     {
       /** make a pair of pointers to state variable */
       ParameterBlock.push_back(States.getElement(Type, Timestamp, StateNumber).getMeanPointer());
-
+      std::cout << "789898798789878987898789879878\n789898798789878987898789879878\n789898798789878987898789879878" << std::endl;
       /** at first we try the more efficient algorithm */
       bool Success = Covariance.Compute(ParameterBlock, &Graph);
+      std::cout << "Success: " << Success << std::endl;
 
       /** if it fails, we use the more robust SVD */
       if (Success)

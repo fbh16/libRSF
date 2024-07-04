@@ -77,6 +77,7 @@ namespace libRSF
       {
         if(this->Enable_)
         {
+        //   std::cout << "111111111111111111111111111" << std::endl; 
           /** map the error pointer to a matrix */
           VectorRef<T, Dim+1> ErrorMap(Error);
 
@@ -85,12 +86,28 @@ namespace libRSF
           MatrixT<T, Dim + 1, 1> ErrorShadow, ErrorShadowBest;
 
           const int NumberOfComponents = Mixture_.getNumberOfComponents();
-
+          
           /** calculate Log-Likelihood for each Gaussian component */
           for(int nComponent = 0; nComponent < NumberOfComponents; ++nComponent)
           {
+            double logLinearPart = log(Mixture_.template getLinearPartOfComponent<T>(nComponent, RawError) / Normalization_);
+            if (std::isnan(logLinearPart)) {
+                std::cout << std::isnan(logLinearPart) << std::endl;
+                logLinearPart = 0;
+            } 
+            //*更改之处
+            // ErrorShadow << Mixture_.template getExponentialPartOfComponent<T>(nComponent, RawError),
+            //                sqrt(ceres::fmax(-2.0 * T(log(Mixture_.template getLinearPartOfComponent<T>(nComponent, RawError) / Normalization_)), T(1e-10)));/** fmax() is required to handle numeric tolerances */
+            
             ErrorShadow << Mixture_.template getExponentialPartOfComponent<T>(nComponent, RawError),
-                           sqrt(ceres::fmax(-2.0 * T(log(Mixture_.template getLinearPartOfComponent<T>(nComponent, RawError) / Normalization_)), T(1e-10)));/** fmax() is required to handle numeric tolerances */
+                           sqrt(ceres::fmax(-2.0 * T(logLinearPart), T(1e-10)));
+
+            // std::cout << "I^1/2(e_i - u_j):\n" << Mixture_.template getExponentialPartOfComponent<T>(nComponent, RawError) << std::endl;
+            
+            // std::cout << "sqrt{-2*ln[c_j/max(c_j)]}: " 
+                    //   << sqrt(ceres::fmax(-2.0 * T(logLinearPart), T(1e-10))) << std::endl;
+
+            
 
             /** keep only the most likely component */
             if(ErrorShadow.squaredNorm() < Loglike || ceres::IsNaN(Loglike))
@@ -103,6 +120,7 @@ namespace libRSF
         }
         else
         {
+        //   std::cout << "0000000000000000000000000000000" << std::endl;
           /** pass raw error trough */
           VectorRef<T, Dim> ErrorMap(Error);
           ErrorMap = RawError;

@@ -62,19 +62,22 @@ libRSF::MatrixStatic<Dim,libRSF::Dynamic> GenerateSamplesGMM(const int Number,
   std::normal_distribution<double> Gaussian(0, 1);
 
   /** crate storage */
-  libRSF::MatrixStatic<Dim,libRSF::Dynamic> Samples(Dim,Number);
+  libRSF::MatrixStatic<Dim,libRSF::Dynamic> Samples(Dim, Number);
 
   /** draw samples */
+//   std::cout << "Sample:\n" << std::endl;
   for (int n = 0; n < Number; ++n)
   {
+    std::cout << "Number: " << n << std::endl;
     libRSF::VectorStatic<Dim> SingleSample;
     for (int d = 0; d < Dim; ++d)
     {
       SingleSample(d) = Gaussian(Generator);
     }
+    std::cout << "size: " << SingleSample.size() << std::endl;
 
     /** switch between component 1 and 2 */
-    if(n < Number*WeightNorm)
+    if(n < Number * WeightNorm)
     {
       SingleSample = Transform1 * SingleSample + Mean1;
     }
@@ -84,7 +87,13 @@ libRSF::MatrixStatic<Dim,libRSF::Dynamic> GenerateSamplesGMM(const int Number,
     }
 
     Samples.col(n) = SingleSample;
+
+    std::cout << "size2: " << Samples.cols() << std::endl;
+
+
+    // std::cout << SingleSample[0] << " " << SingleSample[1] << "\t";
   }
+    std::cout << Samples.rows() << " " << Samples.cols() << std::endl;
 
   return Samples;
 }

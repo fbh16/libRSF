@@ -21,21 +21,21 @@
  ***************************************************************************/
 
 /**
-* @file App_Robust_Models_1D.cpp
-* @author Tim Pfeifer
-* @date 26.08.2019
-* @brief An simple application to evaluate the robust error functions for the scalar case.
-* @copyright GNU Public License.
-*
-*/
+ * @file App_Robust_Models_1D.cpp
+ * @author Tim Pfeifer
+ * @date 26.08.2019
+ * @brief An simple application to evaluate the robust error functions for the scalar case.
+ * @copyright GNU Public License.
+ *
+ */
 
 #include "App_Robust_Models_1D.h"
 
 int CreateGraphAndSolve(std::vector<std::string> &Arguments,
-                       libRSF::StateDataSet &CostSurfaceData,
-                       libRSF::StateDataSet &PreOptimizationData,
-                       libRSF::StateDataSet &PostOptimizationData,
-                       libRSF::StateDataSet &SolverData)
+                        libRSF::StateDataSet &CostSurfaceData,
+                        libRSF::StateDataSet &PreOptimizationData,
+                        libRSF::StateDataSet &PostOptimizationData,
+                        libRSF::StateDataSet &SolverData)
 {
   /** parse testing parameter */
   const int NumberPoints = std::stoi(Arguments.at(3));
@@ -72,16 +72,16 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
   SolverOptions.gradient_tolerance = SolverOptions.function_tolerance * 1e-4;
 
   /** optional: check gradients */
-//  SolverOptions.check_gradients = true;
-//  SolverOptions.gradient_check_relative_precision = 1e-4;
-//  SolverOptions.gradient_check_numeric_derivative_relative_step_size = 1e-3;
+  //  SolverOptions.check_gradients = true;
+  //  SolverOptions.gradient_check_relative_precision = 1e-4;
+  //  SolverOptions.gradient_check_numeric_derivative_relative_step_size = 1e-3;
 
   /** optional: additional debugging */
-//  std::vector<int> Iterations(100);
-//  std::iota (std::begin(Iterations), std::end(Iterations), 1);
-//  SolverOptions.trust_region_minimizer_iterations_to_dump = Iterations;
-//  SolverOptions.trust_region_problem_dump_directory = ".";
-//  SolverOptions.trust_region_problem_dump_format_type = ceres::DumpFormatType::TEXTFILE;
+  //  std::vector<int> Iterations(100);
+  //  std::iota (std::begin(Iterations), std::end(Iterations), 1);
+  //  SolverOptions.trust_region_minimizer_iterations_to_dump = Iterations;
+  //  SolverOptions.trust_region_problem_dump_directory = ".";
+  //  SolverOptions.trust_region_problem_dump_format_type = ceres::DumpFormatType::TEXTFILE;
 
   /** configure Gaussian error model */
   libRSF::GaussianDiagonal<1> Noise;
@@ -145,7 +145,8 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
     /** add factor*/
     SimpleGraph.addFactor<libRSF::FactorType::Prior1>(libRSF::StateID(POSITION_STATE, 0.0, 0),
                                                       libRSF::StateID("Switch", 0.0, 0),
-                                                      AbsoluteMeasurement, SC);
+                                                      AbsoluteMeasurement,
+                                                      SC);
   }
   else if (ErrorModel == "DCS")
   {
@@ -157,18 +158,19 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
     SimpleGraph.addState("Covariance", libRSF::DataType::Covariance1, 0.0);
 
     /** set initial value */
-    SimpleGraph.getStateData().getElement("Covariance", 0.0).setMean(StdDev1*StdDev1);
+    SimpleGraph.getStateData().getElement("Covariance", 0.0).setMean(StdDev1 * StdDev1);
 
     /** set lower bound */
-    SimpleGraph.setLowerBound("Covariance", 0.0, 0, StdDev1*StdDev1);
+    SimpleGraph.setLowerBound("Covariance", 0.0, 0, StdDev1 * StdDev1);
 
     /** create Dynamic Covariance Estimation error model */
-    libRSF::DynamicCovarianceEstimation<1> DCE(StdDev1*StdDev1);
+    libRSF::DynamicCovarianceEstimation<1> DCE(StdDev1 * StdDev1);
 
     /** add factor*/
     SimpleGraph.addFactor<libRSF::FactorType::Prior1>(libRSF::StateID(POSITION_STATE, 0.0, 0),
                                                       libRSF::StateID("Covariance", 0.0, 0),
-                                                      AbsoluteMeasurement, DCE);
+                                                      AbsoluteMeasurement,
+                                                      DCE);
   }
   else if (ErrorModel == "cDCE")
   {
@@ -239,7 +241,7 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
     SolverData.getElement(SOLVE_TIME_STATE, 0.0, nPoint).setValueScalar(libRSF::DataElement::DurationSolver, SimpleGraph.getSolverDurationAndReset());
     SolverData.getElement(SOLVE_TIME_STATE, 0.0, nPoint).setValueScalar(libRSF::DataElement::IterationSolver, SimpleGraph.getSolverIterationsAndReset());
 
-    libRSF::PrintProgress((100.0*nPoint)/NumberPoints);
+    libRSF::PrintProgress((100.0 * nPoint) / NumberPoints);
   }
 
   /** modify timestamps for identification */
@@ -251,9 +253,9 @@ int CreateGraphAndSolve(std::vector<std::string> &Arguments,
   return 0;
 }
 
-#ifndef TESTMODE // only compile main if not used in test context
+#ifndef TESTMODE  // only compile main if not used in test context
 
-int main(int argc, char** argv)
+int main(int argc, char ** argv)
 {
   /** init google logging for ceres */
   google::InitGoogleLogging(*argv);
@@ -269,7 +271,7 @@ int main(int argc, char** argv)
   libRSF::StateDataSet PostOptimizationData;
   libRSF::StateDataSet SolverData;
 
-  if (CreateGraphAndSolve(Arguments,CostSurfaceData,PreOptimizationData,PostOptimizationData,SolverData) != 0)
+  if (CreateGraphAndSolve(Arguments, CostSurfaceData, PreOptimizationData, PostOptimizationData, SolverData) != 0)
   {
     return 1;
   }
@@ -283,4 +285,4 @@ int main(int argc, char** argv)
   return 0;
 }
 
-#endif // TESTMODE
+#endif  // TESTMODE

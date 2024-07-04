@@ -56,10 +56,18 @@ namespace libRSF
         VectorRef<T,3>      Point2(Point2Ptr);
         QuaternionRefConst<T> Quat1(Quat1Ptr);
         QuaternionRef<T>      Quat2(Quat2Ptr);
+        
+        std::cout << "lastUpdate: " << Point1[0] << "," << Point1[1] << "," << Point1[2] << "\t" 
+                  << Quat1Ptr[0] << "," << Quat1Ptr[1] << "," << Quat1Ptr[2] << "," << Quat1Ptr[3] << std::endl;
+        std::cout << "curentInitial: " << Point2[0] << "," << Point2[1] << "," << Point2[2] << "\t"
+                  << Quat2Ptr[0] << "," << Quat2Ptr[1] << "," << Quat2Ptr[2] << "," << Quat2Ptr[3] << std::endl;
 
         /** apply transformation */
         Point2 = Point1 + Quat1 * (Velocity * DeltaTime);
         Quat2 = Quat1 * AngularVelocityToQuaternion<T>(TurnRate, DeltaTime);
+        std::cout << "(" << Velocity[0] << Velocity[1] << Velocity[2] << ")" << " * " << DeltaTime << std::endl;
+        std::cout << "curentPredict: " << Point2[0] << "," << Point2[1] << "," << Point2[2] << "\t"
+                  << Quat2Ptr[0] << "," << Quat2Ptr[1] << "," << Quat2Ptr[2] << "," << Quat2Ptr[3] << std::endl;
       }
 
       void static inline applyBackward(const T* Point1Ptr,

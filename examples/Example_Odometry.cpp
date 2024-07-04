@@ -67,17 +67,17 @@ int main(int ArgC, char** ArgV)
   /** create factor graph */
   libRSF::FactorGraph Graph;
   Graph.addState("Position_Odom", libRSF::DataType::Point3, 0.0);
-  Graph.addState("Position_Odom_Int", libRSF::DataType::Point3, 0.0);
+//   Graph.addState("Position_Odom_Int", libRSF::DataType::Point3, 0.0);
 
   Graph.addState("Quaternion_Odom", libRSF::DataType::Quaternion, 0.0);
-  Graph.addState("Quaternion_Odom_Int", libRSF::DataType::Quaternion, 0.0);
+//   Graph.addState("Quaternion_Odom_Int", libRSF::DataType::Quaternion, 0.0);
 
   /** freeze first state */
   Graph.setConstant("Position_Odom", 0.0);
-  Graph.setConstant("Position_Odom_Int", 0.0);
+//   Graph.setConstant("Position_Odom_Int", 0.0);
 
   Graph.setConstant("Quaternion_Odom", 0.0);
-  Graph.setConstant("Quaternion_Odom_Int", 0.0);
+//   Graph.setConstant("Quaternion_Odom_Int", 0.0);
 
   /** normal (non-integrating) factor */
   double LastTimestamp = 0.0;
@@ -128,17 +128,16 @@ int main(int ArgC, char** ArgV)
                                                       libRSF::StateID("Position_Odom_Int", TimeStamp),
                                                       libRSF::StateID("Quaternion_Odom_Int", TimeStamp),
                                                       PoseInt, NoiseInt);
-
     LastTimestamp = TimeStamp;
   }
 
   /** optimize both graphs */
   Graph.solve();
   Graph.computeCovariance("Position_Odom");
-  Graph.computeCovariance("Position_Odom_Int");
+//   Graph.computeCovariance("Position_Odom_Int");
 
   Graph.computeCovariance("Quaternion_Odom");
-  Graph.computeCovariance("Quaternion_Odom_Int");
+//   Graph.computeCovariance("Quaternion_Odom_Int");
 
   /** output result */
   for (const libRSF::Data &Odom : OdomMeasurements)
@@ -152,10 +151,10 @@ int main(int ArgC, char** ArgV)
                                         << Graph.getStateData().getElement("Position_Odom", TimeStamp).getCovarianceDiagonal().transpose()
                                         << std::endl;
 
-    std::cout << "Integr. Odom - Translation: " << Graph.getStateData().getElement("Position_Odom_Int", TimeStamp).getMean().transpose()
-                                        << " ### "
-                                        << Graph.getStateData().getElement("Position_Odom_Int", TimeStamp).getCovarianceDiagonal().transpose()
-                                        << std::endl;
+    // std::cout << "Integr. Odom - Translation: " << Graph.getStateData().getElement("Position_Odom_Int", TimeStamp).getMean().transpose()
+    //                                     << " ### "
+    //                                     << Graph.getStateData().getElement("Position_Odom_Int", TimeStamp).getCovarianceDiagonal().transpose()
+    //                                     << std::endl;
 
     std::cout << std::endl;
 
@@ -164,10 +163,10 @@ int main(int ArgC, char** ArgV)
                                         << Graph.getStateData().getElement("Quaternion_Odom", TimeStamp).getCovarianceDiagonal().transpose()
                                         << std::endl;
 
-    std::cout << "Integr. Odom - Rotation:   " << Graph.getStateData().getElement("Quaternion_Odom_Int", TimeStamp).getMean().transpose()
-                                        << " ### "
-                                        << Graph.getStateData().getElement("Quaternion_Odom_Int", TimeStamp).getCovarianceDiagonal().transpose()
-                                        << std::endl;
+    // std::cout << "Integr. Odom - Rotation:   " << Graph.getStateData().getElement("Quaternion_Odom_Int", TimeStamp).getMean().transpose()
+    //                                     << " ### "
+    //                                     << Graph.getStateData().getElement("Quaternion_Odom_Int", TimeStamp).getCovarianceDiagonal().transpose()
+    //                                     << std::endl;
 
     std::cout << std::endl;
   }

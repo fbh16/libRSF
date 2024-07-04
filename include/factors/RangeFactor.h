@@ -57,8 +57,8 @@ namespace libRSF
                              const double &Range) const
       {
         VectorT<T, 1> Error;
-        Error(0) = VectorDistance<Dim, T, double>(Position1, Position2.data())
-                   - Range;
+        Error(0) = VectorDistance<Dim, T, double>(Position1, Position2.data()) // 小车与UWB间距离估值
+                   - Range; // 小车与UWB间距离观测
         return Error;
       }
 

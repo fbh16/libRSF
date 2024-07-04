@@ -95,22 +95,29 @@ namespace libRSF
       /** predict the next state for initialization, order is the same as for Evaluate() */
       void predict(const std::vector<double*> &StatePointers) const
       {
+        // std::cout << "9" << std::endl;
         /** map pointer to vectors */
-        VectorRefConst<double, 2> P1(StatePointers.at(0));
+        VectorRefConst<double, 2> P1(StatePointers.at(0)); //previous
         VectorRefConst<double, 1> Yaw1(StatePointers.at(1));
-        VectorRef<double, 2>      P2(StatePointers.at(2));
+        VectorRef<double, 2>      P2(StatePointers.at(2));//current
         VectorRef<double, 1>      Yaw2(StatePointers.at(3));
 
         /** get odometry information */
         const double WheelBase = this->MeasurementVector_(3);
+        // std::cout << "wheelBase: " << WheelBase << std::endl;
+
         const Vector3 Odometry = this->MeasurementVector_.head(3);
+        // std::cout << "odometry: " << Odometry << std::endl;
+
+        // std::cout << "P1: " << "\n" << P1 << std::endl;
 
         /** predict translation */
         Vector2 POdom;
-        POdom << (Odometry(1) + Odometry(0)) / 2.0, Odometry(2);
+        POdom << (Odometry(1) + Odometry(0)) / 2.0, Odometry(2); // left, right and Y-axis velocity 
         POdom = RotationMatrix2D(Yaw1(0)) * POdom * this->DeltaTime_;
         P2 = P1 + POdom;
 
+        // std::cout << "P2_new: " << "\n" << P2 << std::endl;
         /** predict rotation */
         Yaw2(0) = NormalizeAngle(Yaw1(0) + (Odometry(1) - Odometry(0)) / (WheelBase * 2.0) * this->DeltaTime_);
       }

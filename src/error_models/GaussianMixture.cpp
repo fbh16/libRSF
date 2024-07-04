@@ -38,7 +38,7 @@ namespace libRSF
     }
     else
     {
-      std::cerr << "Error in GaussianMixture::addDiagonal(): Parameter dimension isn't equal! "
+      std::cerr <<"Error in GaussianMixture::addDiagonal(): Parameter dimension isn't equal! "
                 <<"StdDev: "  << StdDev.size()  << " "
                 <<"Mean: "    << Mean.size()    << " "
                 <<"Weight: "  << Weight.size()  << " " << std::endl;

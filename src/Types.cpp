@@ -598,6 +598,18 @@ namespace libRSF
         {DataElement::Covariance, 1}
       }
     }
+
+    // {
+    //   "range3", DataType::Range3,
+    //   {
+    //     {DataElement::Timestamp, 1},
+    //     {DataElement::Mean, 1},
+    //     {DataElement::Covariance , 1},
+    //     {DataElement::SatPos, 3},
+    //     {DataElement::SatID , 1},
+    //     {DataElement::SNR , 1}
+    //   }
+    // }
   };
 
   /** init the config based on the given list */

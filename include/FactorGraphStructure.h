@@ -41,8 +41,6 @@
 
 namespace libRSF
 {
-
-
   class FactorGraphStructure
   {
     public:

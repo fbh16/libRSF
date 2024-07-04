@@ -57,7 +57,8 @@ int main(int ArgC, char** ArgV)
   /** sample from GMM */
   const libRSF::Vector Data = GenerateSamplesGMM<1>(N,
                                                     -Mean1,Cov1,Weight1,
-                                                    -Mean2,Cov2,Weight2);
+                                                    -Mean2,Cov2,Weight2); //生成了N组1维GMM数据
+    
   /** initialize GMM */
   libRSF::GaussianMixture<1> GMM_true;
   libRSF::GaussianMixture<1> GMM_EM;

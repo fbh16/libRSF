@@ -87,7 +87,7 @@ int main(int ArgC, char** ArgV)
   libRSF::GaussianFull<2> NoisePrior;
   NoisePrior.setCovarianceMatrix(CovMat);
 
-  /** add absolute measurement factor*/
+  /** add absolute measurement factor */
   libRSF::Data AbsoluteMeasurement(libRSF::DataType::Point2, 1.0);
   AbsoluteMeasurement.setMean(StateVect * 4.2);
   SimpleGraph.addFactor<libRSF::FactorType::Prior2>(libRSF::StateID(POSITION_STATE, 1.0), AbsoluteMeasurement, NoisePrior);

@@ -20,29 +20,30 @@
  * Author: Tim Pfeifer (tim.pfeifer@etit.tu-chemnitz.de)
  ***************************************************************************/
 
-  /**
-* @file Example_KF.cpp
-* @author Tim Pfeifer
-* @date 25.11.2019
-* @brief An example application to demonstrate how a Kalman filter can be implemented with ceres.
-* @copyright GNU Public License.
-*
-*/
+/**
+ * @file Example_KF.cpp
+ * @author Tim Pfeifer
+ * @date 25.11.2019
+ * @brief An example application to demonstrate how a Kalman filter can be implemented with ceres.
+ * @copyright GNU Public License.
+ *
+ */
 
 #include <ceres/ceres.h>
+
 #include "libRSF.h"
 
 /** use define to prevent typos*/
 #define POSITION_STATE "Position"
 #define RANGE_MEASUREMENT libRSF::DataType::Range2
 
-#define STDDEV_RANGE  0.25
-#define STDDEV_CP     1.0
+#define STDDEV_RANGE 0.25
+#define STDDEV_CP 1.0
 
-void CreateData (libRSF::SensorDataSet &RangeMeasurements)
+void CreateData(libRSF::SensorDataSet &RangeMeasurements)
 {
   std::default_random_engine Generator(42);
-  std::normal_distribution<double> Distribution(0.0, STDDEV_RANGE);
+  std::normal_distribution<double> Distribution(0.0, STDDEV_RANGE);  // 正态分布
 
   libRSF::Vector1 Range, StdDev, SatID;
   vector<libRSF::Vector2> SatPositions;
@@ -78,7 +79,8 @@ void CreateData (libRSF::SensorDataSet &RangeMeasurements)
   {
     for (int j = 0; j < static_cast<int>(SatPositions.size()); j++)
     {
-      Range[0] = (SatPositions.at(j) - EgoPositions.at(i)).norm() + Distribution(Generator);
+      Range[0] = (SatPositions.at(j) - EgoPositions.at(i)).norm() + Distribution(Generator);  // UWB与小车间的距离 + 高斯噪声
+      //   std::cout << EgoPositions[i].x() <<","<<EgoPositions[i].y()  << "," << Range[0] << std::endl;
       SatID << j;
 
       libRSF::Data RangeMeasurement(libRSF::DataType::Range2, i);
@@ -92,7 +94,7 @@ void CreateData (libRSF::SensorDataSet &RangeMeasurements)
   }
 }
 
-int main(int ArgC, char** ArgV)
+int main(int ArgC, char ** ArgV)
 {
   (void)ArgC;
   google::InitGoogleLogging(*ArgV);
@@ -128,46 +130,54 @@ int main(int ArgC, char** ArgV)
   RangeMeasurements.getTimeFirst(RANGE_MEASUREMENT, Time);
   do
   {
+    // std::cout << "\n";
+    // std::cout << "********" << Time << "\t" << TimeOld << "********" << std::endl;
     /** add position variables to graph */
     SimpleGraph.addState(POSITION_STATE, libRSF::DataType::Point2, Time);
-    KFGraph.addState(POSITION_STATE, libRSF::DataType::Point2, Time);
+    // KFGraph.addState(POSITION_STATE, libRSF::DataType::Point2, Time);
 
     /** add motion model */
-    if(Time > 0)
+    if (Time > 0)
     {
       SimpleGraph.addFactor<libRSF::FactorType::ConstVal2>(libRSF::StateID(POSITION_STATE, TimeOld), libRSF::StateID(POSITION_STATE, Time), NoiseCP);
-      KFGraph.addFactor<libRSF::FactorType::ConstVal2>(libRSF::StateID(POSITION_STATE, TimeOld), libRSF::StateID(POSITION_STATE, Time), NoiseCP);
+    //   KFGraph.addFactor<libRSF::FactorType::ConstVal2>(libRSF::StateID(POSITION_STATE, TimeOld), libRSF::StateID(POSITION_STATE, Time), NoiseCP);
 
       /** remove old state of KF */
       KFGraph.marginalizeState(POSITION_STATE, TimeOld, 0);
+
+      //   if (Time > 5) {
+      //     SimpleGraph.removeAllFactorsOutsideWindow(5, Time);
+      //     SimpleGraph.removeAllStatesOutsideWindow(5, Time);
+      //   }
     }
 
     /** add range measurements */
     for (int nMeasurement = RangeMeasurements.countElement(RANGE_MEASUREMENT, Time); nMeasurement > 0; nMeasurement--)
     {
-      libRSF::Data Range =  RangeMeasurements.getElement(RANGE_MEASUREMENT, Time, nMeasurement-1);
-      SimpleGraph.addFactor<libRSF::FactorType::Range2>(libRSF::StateID(POSITION_STATE, Time),Range , NoiseRange);
-      KFGraph.addFactor<libRSF::FactorType::Range2>(libRSF::StateID(POSITION_STATE, Time),Range , NoiseRange);
+      libRSF::Data Range = RangeMeasurements.getElement(RANGE_MEASUREMENT, Time, nMeasurement - 1);
+      //   std::cout << "  range: "
+      //             << RangeMeasurements.getElement(RANGE_MEASUREMENT, Time, nMeasurement - 1).getMean() << std::endl;
+      SimpleGraph.addFactor<libRSF::FactorType::Range2>(libRSF::StateID(POSITION_STATE, Time), Range, NoiseRange);
+    //   KFGraph.addFactor<libRSF::FactorType::Range2>(libRSF::StateID(POSITION_STATE, Time), Range, NoiseRange);
     }
 
     /** solve KF */
-    KFGraph.solve(KFOptions);
-    KFGraph.computeCovariance(POSITION_STATE);
+    // KFGraph.solve(KFOptions);
+    // KFGraph.computeCovariance(POSITION_STATE);
 
     /** solve FGO */
     SimpleGraph.solve(FGOptions);
     SimpleGraph.computeCovariance(POSITION_STATE);
 
     /** print result */
-    std::cout << "KF:  " << KFGraph.getStateData().getElement(POSITION_STATE, Time).getNameValueString() << std::endl;
-    std::cout << "FGO: " << SimpleGraph.getStateData().getElement(POSITION_STATE, Time).getNameValueString() << std::endl << std::endl;
+    // std::cout << "KF:  " << KFGraph.getStateData().getElement(POSITION_STATE, Time).getNameValueString() << std::endl;
+    std::cout << SimpleGraph.getStateData().getElement(POSITION_STATE, Time).getNameValueString() << std::endl;
 
     /** save current timestamp */
     TimeOld = Time;
-  }
-  while(RangeMeasurements.getTimeNext(RANGE_MEASUREMENT, Time, Time));
+  } while (RangeMeasurements.getTimeNext(RANGE_MEASUREMENT, Time, Time));
 
-  SimpleGraph.printReport();
+  // SimpleGraph.printReport();
 
   return 0;
 }

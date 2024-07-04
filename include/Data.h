@@ -69,9 +69,6 @@ namespace libRSF
       void setStdDevDiagonal(const Vector& StdDev);
       void setCovariance(const Vector& Cov);
       void setCovarianceMatrix(const Matrix& Cov);
-
-    private:
-
   };
 }
 

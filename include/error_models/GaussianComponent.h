@@ -32,11 +32,11 @@
 #ifndef GAUSSIANCOMPONENT_H
 #define GAUSSIANCOMPONENT_H
 
-#include "../VectorMath.h"
-#include "../Messages.h"
-
 #include <cmath>
 #include <random>
+
+#include "../Messages.h"
+#include "../VectorMath.h"
 
 namespace libRSF
 {
@@ -44,418 +44,439 @@ namespace libRSF
   template <int Dim>
   class GaussianComponent
   {
-    public:
-      GaussianComponent()
+   public:
+    GaussianComponent()
+    {
+      Scaling_ = 1;
+    }
+
+    ~GaussianComponent() = default;
+
+    using ErrorMatType = MatrixStatic<Dim, Dynamic>;
+
+    void setParamsStdDev(const MatrixStatic<Dim, 1> &StdDev,
+                         const MatrixStatic<Dim, 1> &Mean,
+                         const MatrixStatic<1, 1> &Weight)
+    {
+      Mean_ = Mean;
+      Weight_ = Weight;
+
+      /** write information matrix directly */
+      SqrtInformation_ = StdDev.cwiseInverse().asDiagonal();
+
+      updateScaling_();
+    }
+
+    void setParamsCovariance(const MatrixStatic<Dim, Dim> &Covariance,
+                             const MatrixStatic<Dim, 1> &Mean,
+                             const MatrixStatic<1, 1> &Weight)
+    {
+      Mean_ = Mean;
+      Weight_ = Weight;
+
+      /** use decomposition to get square root information matrix */
+      SqrtInformation_ = InverseSquareRoot(Covariance);
+
+      updateScaling_();
+    }
+
+    void setParamsInformation(const MatrixStatic<Dim, Dim> &Information,
+                              const MatrixStatic<Dim, 1> &Mean,
+                              const MatrixStatic<1, 1> &Weight)
+    {
+      Mean_ = Mean;
+      Weight_ = Weight;
+      SqrtInformation_ = SquareRoot(Information);
+
+      updateScaling_();
+    }
+
+    void setParamsSqrtInformation(const MatrixStatic<Dim, Dim> &SqrtInformation,
+                                  const MatrixStatic<Dim, 1> &Mean,
+                                  const MatrixStatic<1, 1> &Weight)
+    {
+      Mean_ = Mean;
+      Weight_ = Weight;
+      SqrtInformation_ = SqrtInformation;
+
+      updateScaling_();
+    }
+
+    void setSqrtInformation(const MatrixStatic<Dim, Dim> &SqrtInformation)
+    {
+      SqrtInformation_ = SqrtInformation;
+
+      updateScaling_();
+    }
+
+    void updateCovariance(const MatrixStatic<Dim, Dim> &Covariance)
+    {
+      SqrtInformation_ = InverseSquareRoot(Covariance);
+
+      updateScaling_();
+    }
+
+    [[nodiscard]] MatrixStatic<Dim, 1> getMean() const
+    {
+      return Mean_;
+    }
+
+    [[nodiscard]] MatrixStatic<1, 1> getWeight() const
+    {
+      return Weight_;
+    }
+
+    [[nodiscard]] MatrixStatic<Dim, Dim> getSqrtInformation() const
+    {
+      return SqrtInformation_;
+    }
+
+    [[nodiscard]] MatrixStatic<Dim, Dim> getCovariance() const
+    {
+      return (SqrtInformation_.transpose() * SqrtInformation_).inverse();
+    }
+
+    void setMean(MatrixStatic<Dim, 1> Mean)
+    {
+      Mean_ = Mean;
+    }
+
+    /** return the part inside the exp() function */
+    template <typename T>
+    MatrixT<T, Dim, 1> getExponentialPart(const VectorT<T, Dim> &Error) const
+    {
+      VectorT<T, Dim> WeightedError;
+
+      /** shift by mean */
+      WeightedError = Error + Mean_.template cast<T>();
+      //   WeightedError = Error - Mean_.template cast<T>(); //!
+
+      /** scale with information matrix */
+      WeightedError = SqrtInformation_.template cast<T>() * WeightedError;
+
+      return WeightedError;
+    }
+
+    /** return the part before the exp() function */
+    template <typename T>
+    double getLinearPart(const VectorT<T, Dim> &Error) const
+    {
+    //   std::cout << "SqrtInformation_\n" << SqrtInformation_ << std::endl; 
+      return Scaling_;
+    }
+
+    /** return the maximum value at the mode of the probability function*/
+    [[nodiscard]] double getMaximum() const
+    {
+      return Scaling_;
+    }
+
+    //* estimate process
+    /** compute probability for E step of EM */
+    Vector computeLikelihood(const ErrorMatType &Errors, const bool EnablNegLog = true) const
+    {
+      /** apply mean */
+      ErrorMatType WeightedError = (Errors.array().colwise() + Mean_.array()).matrix(); //* (x-z)+u
+
+      /** multiply each row with square root information */
+      for (Index n = 0; n < WeightedError.cols(); ++n)
       {
-        Scaling_ = 1;
+        WeightedError.col(n) = (WeightedError.col(n).transpose() * SqrtInformation_).transpose();  //* I*[(x-z)+u]
       }
 
-      ~GaussianComponent() = default;
-
-      using ErrorMatType = MatrixStatic<Dim, Dynamic>;
-
-      void setParamsStdDev(const MatrixStatic<Dim, 1> &StdDev,
-                           const MatrixStatic<Dim, 1> &Mean,
-                           const MatrixStatic<1, 1> &Weight)
+      /***
+       ** 求P(e_i | w, u, I^{1/2})
+       ** Scaling_: weight * det(I^{1/2})
+       ** return: weight * det(I^{1/2}) * exp{1/2 || I*[(x-z)+u] ||^2}
+       */
+      Vector Likelihood;
+      if (EnablNegLog)
       {
-        Mean_ = Mean;
-        Weight_ = Weight;
+        Likelihood = -log(WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_;
+      }
+      else
+      {
+        Likelihood = ((WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_);
+      }
+      //   return ((WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_).matrix();
+      return (Likelihood).matrix();
+    }
 
-        /** write information matrix directly */
-        SqrtInformation_ = StdDev.cwiseInverse().asDiagonal();
+    /** estimate parameters for M step of EM */
+    void estimateParameters(const ErrorMatType &Errors,
+                            const Vector &Likelihoods,
+                            bool EstimateMean)
+    {
+      const double LikelihoodSum = Likelihoods.sum();
+      //   std::cout << "LikelihoodSum " << LikelihoodSum << std::endl;
+      /** estimate weight */
+      Weight_(0) = LikelihoodSum / static_cast<double>(Likelihoods.rows());  // Likelihoods.rows()样本数
 
-        updateScaling_();
+      /** estimate mean */
+      if (EstimateMean)
+      {
+        // std::cout << "EstimateMean " << EstimateMean << std::endl;
+        Mean_ = -((Errors.array().rowwise() * Likelihoods.transpose().array()).rowwise().sum() / LikelihoodSum).matrix();
+        // std::cout << "Mean " << Mean_ << std::endl;
+        // Mean_ = ((Errors.array().rowwise() * Likelihoods.transpose().array()).rowwise().sum() / LikelihoodSum).matrix();  // 0703
       }
 
-      void setParamsCovariance(const MatrixStatic<Dim, Dim> &Covariance,
-                               const MatrixStatic<Dim, 1> &Mean,
-                               const MatrixStatic<1, 1> &Weight)
+      /** estimate covariance */
+      MatrixStatic<Dim, Dim> Covariance = MatrixStatic<Dim, Dim>::Zero();
+      for (Index n = 0; n < Errors.cols(); ++n)
       {
-        Mean_ = Mean;
-        Weight_ = Weight;
+        MatrixStatic<Dim, 1> Diff = Errors.col(n) + Mean_;
+        // std::cout << "Error: " << Errors.col(n).transpose() << std::endl;
+        // std::cout << "Mean_: " << Mean_.transpose() << std::endl;
+        // std::cout << "Diff: " << Diff.transpose() << std::endl;
+        Covariance += Diff * Diff.transpose() * Likelihoods(n);
+      }
+      Covariance.array() /= LikelihoodSum;
+      SqrtInformation_ = InverseSquareRoot(Covariance);
 
-        /** use decomposition to get square root information matrix */
-        SqrtInformation_ = InverseSquareRoot(Covariance);
-
-        updateScaling_();
+      /** check for degenerated square root information matrix */
+      if (SqrtInformation_.array().isFinite().all() == false)
+      {
+        /** disable component if degenerated */
+        Weight_.setZero();
+        Mean_.setZero();
+        SqrtInformation_ = MatrixStatic<Dim, Dim>::Identity();
       }
 
-      void setParamsInformation(const MatrixStatic<Dim, Dim> &Information,
-                                const MatrixStatic<Dim, 1> &Mean,
-                                const MatrixStatic<1, 1> &Weight)
+      /** check for extreme numerical values */
+      if ((SqrtInformation_.array() > 1e10).any() == true)
       {
-        Mean_ = Mean;
-        Weight_ = Weight;
-        SqrtInformation_ = SquareRoot(Information);
-
-        updateScaling_();
+#ifndef NDEBUG
+        PRINT_WARNING("Square root information is too high: ", SqrtInformation_.maxCoeff());
+        PRINT_WARNING("Limit Square root information to 1e10 for numerical reasons!");
+#endif
+        SqrtInformation_ = (SqrtInformation_.array() < 1e10).select(SqrtInformation_, 1e10);
       }
 
-      void setParamsSqrtInformation(const MatrixStatic<Dim, Dim> &SqrtInformation,
-                                    const MatrixStatic<Dim, 1> &Mean,
-                                    const MatrixStatic<1, 1> &Weight)
-      {
-        Mean_ = Mean;
-        Weight_ = Weight;
-        SqrtInformation_ = SqrtInformation;
+      updateScaling_();
+    }
 
-        updateScaling_();
-      }
-
-      void setSqrtInformation(const MatrixStatic<Dim, Dim> &SqrtInformation)
-      {
-        SqrtInformation_ = SqrtInformation;
-
-        updateScaling_();
-      }
-
-      void updateCovariance(const MatrixStatic<Dim, Dim> &Covariance)
-      {
-        SqrtInformation_ = InverseSquareRoot(Covariance);
-
-        updateScaling_();
-      }
-
-      [[nodiscard]] MatrixStatic<Dim, 1> getMean() const
-      {
-        return Mean_;
-      }
-
-      [[nodiscard]] MatrixStatic<1, 1> getWeight() const
-      {
-        return Weight_;
-      }
-
-      [[nodiscard]] MatrixStatic<Dim, Dim> getSqrtInformation() const
-      {
-        return SqrtInformation_;
-      }
-
-      [[nodiscard]] MatrixStatic<Dim, Dim> getCovariance() const
-      {
-        return (SqrtInformation_.transpose() * SqrtInformation_).inverse();
-      }
-
-      void setMean(MatrixStatic<Dim, 1> Mean)
-      {
-        Mean_ = Mean;
-      }
-
-      /** return the part inside the exp() function */
-      template <typename T>
-      MatrixT<T, Dim, 1 > getExponentialPart(const VectorT<T, Dim> &Error) const
-      {
-        VectorT<T, Dim> WeightedError;
-
-        /** shift by mean */
-        WeightedError = Error + Mean_.template cast<T>();
-
-        /** scale with information matrix */
-        WeightedError = SqrtInformation_.template cast<T>() * WeightedError;
-
-        return WeightedError;
-      }
-
-      /** return the part before the exp() function */
-      template <typename T>
-      double getLinearPart(const VectorT<T, Dim> &Error) const
-      {
-        return Scaling_;
-      }
-
-      /** return the maximum value at the mode of the probability function*/
-      [[nodiscard]] double getMaximum() const
-      {
-        return Scaling_;
-      }
-
-      /** compute probability for E step of EM */
-      Vector computeLikelihood (const ErrorMatType &Errors) const
-      {
-        /** apply mean */
-        ErrorMatType WeightedError = (Errors.array().colwise() + Mean_.array()).matrix();
-
-        /** multiply each row with square root information */
-        for (Index n = 0; n < WeightedError.cols(); ++n)
-        {
-          WeightedError.col(n) = (WeightedError.col(n).transpose() * SqrtInformation_).transpose();
-        }
-
-        return ((WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_).matrix();
-      }
-
-      /** estimate parameters for M step of EM */
-      void estimateParameters (const ErrorMatType &Errors,
+    void estimateParametersMAP(const ErrorMatType &Errors,
                                const Vector &Likelihoods,
-                               bool  EstimateMean)
+                               const double DirichletConcentration,
+                               const double DirichletConcentrationSum,
+                               const double NormalInfoScaling,
+                               const VectorStatic<Dim> &NormalMean,
+                               const MatrixStatic<Dim, Dim> &WishartScatterMatrix,
+                               const double WishartDOF,
+                               bool EstimateMean)
+    {
+      /** Implementation based on:
+       * Kevin Murphy
+       * Machine learning: a probabilistic perspective, Section 11.4.2
+       * 2012
+       */
+
+      /** pre-calculate shared values */
+      const double LikelihoodSum = Likelihoods.sum();
+
+      /** estimate weight */
+      Weight_(0) = std::max((LikelihoodSum + DirichletConcentration - 1.0) /
+                                (DirichletConcentrationSum + static_cast<double>(Likelihoods.rows())),
+                            0.0);
+
+      /** estimate mean */
+      const VectorStatic<Dim> MeanML = (Errors.array().rowwise() * Likelihoods.transpose().array()).rowwise().sum() / LikelihoodSum;
+      if (EstimateMean)
       {
-        const double LikelihoodSum = Likelihoods.sum();
-
-        /** estimate weight */
-        Weight_(0) = LikelihoodSum / static_cast<double>(Likelihoods.rows());
-
-        /** estimate mean */
-        if (EstimateMean)
-        {
-           Mean_ = -((Errors.array().rowwise() * Likelihoods.transpose().array()).rowwise().sum() / LikelihoodSum).matrix();
-        }
-
-        /** estimate covariance */
-        MatrixStatic<Dim,Dim> Covariance = MatrixStatic<Dim,Dim>::Zero();
-        for (Index n = 0; n < Errors.cols(); ++n)
-        {
-          MatrixStatic<Dim, 1> Diff = Errors.col(n) + Mean_;
-          Covariance += Diff * Diff.transpose() * Likelihoods(n);
-        }
-        Covariance.array() /= LikelihoodSum;
-        SqrtInformation_ = InverseSquareRoot(Covariance);
-
-        /** check for degenerated square root information matrix */
-        if(SqrtInformation_.array().isFinite().all() == false)
-        {
-          /** disable component if degenerated */
-          Weight_.setZero();
-          Mean_.setZero();
-          SqrtInformation_ = MatrixStatic<Dim, Dim>::Identity();
-        }
-
-        /** check for extreme numerical values */
-        if((SqrtInformation_.array() > 1e10).any() == true)
-        {
-          #ifndef NDEBUG
-          PRINT_WARNING("Square root information is too high: ", SqrtInformation_.maxCoeff());
-          PRINT_WARNING("Limit Square root information to 1e10 for numerical reasons!");
-          #endif
-          SqrtInformation_ = (SqrtInformation_.array() < 1e10).select(SqrtInformation_, 1e10);
-        }
-
-        updateScaling_();
+        Mean_ = -(MeanML * LikelihoodSum + NormalMean * NormalInfoScaling) / (NormalInfoScaling + LikelihoodSum);
+        // Mean_ = (MeanML * LikelihoodSum + NormalMean * NormalInfoScaling) / (NormalInfoScaling + LikelihoodSum);
       }
 
-      void estimateParametersMAP (const ErrorMatType &Errors,
-                                  const Vector &Likelihoods,
-                                  const double DirichletConcentration,
-                                  const double DirichletConcentrationSum,
-                                  const double NormalInfoScaling,
-                                  const VectorStatic<Dim> &NormalMean,
-                                  const MatrixStatic<Dim,Dim> &WishartScatterMatrix,
-                                  const double WishartDOF,
-                                  bool EstimateMean)
+      /** estimate covariance */
+      MatrixStatic<Dim, Dim> ScatterML = MatrixStatic<Dim, Dim>::Zero();
+      for (Index n = 0; n < Errors.cols(); ++n)
       {
-        /** Implementation based on:
-        * Kevin Murphy
-        * Machine learning: a probabilistic perspective, Section 11.4.2
-        * 2012
-        */
-
-        /** pre-calculate shared values */
-        const double LikelihoodSum = Likelihoods.sum();
-
-        /** estimate weight */
-        Weight_(0) = std::max((LikelihoodSum + DirichletConcentration - 1.0)
-                     /
-                     (DirichletConcentrationSum + static_cast<double>(Likelihoods.rows())), 0.0);
-
-        /** estimate mean */
-        const VectorStatic<Dim> MeanML = (Errors.array().rowwise() * Likelihoods.transpose().array()).rowwise().sum() / LikelihoodSum;
-        if (EstimateMean)
-        {
-          Mean_ = -(MeanML*LikelihoodSum + NormalMean*NormalInfoScaling) / (NormalInfoScaling + LikelihoodSum);
-        }
-
-        /** estimate covariance */
-        MatrixStatic<Dim,Dim> ScatterML = MatrixStatic<Dim,Dim>::Zero();
-        for (Index n = 0; n < Errors.cols(); ++n)
-        {
-          const MatrixStatic<Dim, 1> Diff = Errors.col(n) - MeanML;
-          ScatterML += Diff * Diff.transpose() * Likelihoods(n);
-        }
-
-        const MatrixStatic<Dim,Dim> DenominatorInfo = WishartScatterMatrix
-                                                    + ScatterML
-                                                    + NormalInfoScaling*LikelihoodSum/(NormalInfoScaling + LikelihoodSum)
-                                                      *(MeanML - NormalMean)*(MeanML - NormalMean).transpose();
-
-        const double EnumeratorInfo = WishartDOF + LikelihoodSum + Dim + 2;
-
-        SqrtInformation_ = SquareRoot<Dim,double>(EnumeratorInfo * Inverse<Dim,double>(DenominatorInfo));
-
-        /** check for degenerated square root information matrix */
-        if(SqrtInformation_.array().isFinite().all() == false)
-        {
-          /** disable component if degenerated */
-          Weight_.setZero();
-          Mean_.setZero();
-          SqrtInformation_ = MatrixStatic<Dim, Dim>::Identity();
-        }
-
-        updateScaling_();
+        const MatrixStatic<Dim, 1> Diff = Errors.col(n) - MeanML;
+        ScatterML += Diff * Diff.transpose() * Likelihoods(n);
       }
 
-      /** compute negative log-likelihood of a sample vector */
-      Vector computeNegLogLikelihood (const ErrorMatType &Errors, const bool EvalAsError = true) const
+      const MatrixStatic<Dim, Dim> DenominatorInfo = WishartScatterMatrix + ScatterML + NormalInfoScaling * LikelihoodSum / (NormalInfoScaling + LikelihoodSum) * (MeanML - NormalMean) * (MeanML - NormalMean).transpose();
+
+      const double EnumeratorInfo = WishartDOF + LikelihoodSum + Dim + 2;
+
+      SqrtInformation_ = SquareRoot<Dim, double>(EnumeratorInfo * Inverse<Dim, double>(DenominatorInfo));
+
+      /** check for degenerated square root information matrix */
+      if (SqrtInformation_.array().isFinite().all() == false)
       {
-        /** apply mean (sign depends on the interpretation of a sample) */
-        ErrorMatType WeightedError;
-        if (EvalAsError)
-        {
-          WeightedError = (Errors.array().colwise() + Mean_.array()).matrix();
-        }
-        else
-        {
-          WeightedError = (Errors.array().colwise() - Mean_.array()).matrix();
-        }
-
-        /** multiply each row with square root information */
-        for (int n = 0; n < WeightedError.cols(); ++n)
-        {
-          WeightedError.col(n) = (WeightedError.col(n).transpose() * SqrtInformation_).transpose();
-        }
-
-        return ((WeightedError.array().square().colwise().sum() / 2.0) - log(Scaling_)).matrix();
+        /** disable component if degenerated */
+        Weight_.setZero();
+        Mean_.setZero();
+        SqrtInformation_ = MatrixStatic<Dim, Dim>::Identity();
       }
 
-      [[nodiscard]] bool checkParameters () const
-      {
-        bool Passed = true;
+      updateScaling_();
+    }
 
-        /** check weight */
-        if(!Weight_.allFinite())
+    /** compute negative log-likelihood of a sample vector */
+    Vector computeNegLogLikelihood(const ErrorMatType &Errors, const bool EvalAsError = true) const
+    {
+      /** apply mean (sign depends on the interpretation of a sample) */
+      ErrorMatType WeightedError;
+      if (EvalAsError)
+      {
+        WeightedError = (Errors.array().colwise() + Mean_.array()).matrix();
+      }
+      else
+      {
+        WeightedError = (Errors.array().colwise() - Mean_.array()).matrix();
+      }
+
+      /** multiply each row with square root information */
+      for (int n = 0; n < WeightedError.cols(); ++n)
+      {
+        WeightedError.col(n) = (WeightedError.col(n).transpose() * SqrtInformation_).transpose();
+      }
+
+      return ((WeightedError.array().square().colwise().sum() / 2.0) - log(Scaling_)).matrix();
+    }
+
+    [[nodiscard]] bool checkParameters() const
+    {
+      bool Passed = true;
+
+      /** check weight */
+      if (!Weight_.allFinite())
+      {
+        PRINT_WARNING("Weight is not finite!");
+        Passed = false;
+      }
+      else if (Weight_(0) <= 0)
+      {
+        PRINT_WARNING("Weight is not positive!");
+        Passed = false;
+      }
+      else if (Weight_(0) > 1)
+      {
+        PRINT_WARNING("Weight is bigger than one!");
+        Passed = false;
+      }
+
+      /** check mean */
+      if (Mean_.allFinite() == false)
+      {
+        PRINT_WARNING("Mean is not finite!");
+        Passed = false;
+      }
+
+      /** check uncertainty */
+      if (SqrtInformation_.allFinite() == false)
+      {
+        PRINT_WARNING("Square root information is not finite!");
+        Passed = false;
+      }
+      else
+      {
+        if (IsPositiveSemidefinite<Dim>(SqrtInformation_) == false)
         {
-          PRINT_WARNING("Weight is not finite!");
+          PRINT_WARNING("Square root information is not positive semi-definite!");
           Passed = false;
         }
-        else if(Weight_(0) <= 0)
-        {
-          PRINT_WARNING("Weight is not positive!");
-          Passed = false;
-        }
-        else if(Weight_(0) > 1)
-        {
-          PRINT_WARNING("Weight is bigger than one!");
-          Passed = false;
-        }
-
-        /** check mean */
-        if(Mean_.allFinite() == false)
-        {
-          PRINT_WARNING("Mean is not finite!");
-          Passed = false;
-        }
-
-        /** check uncertainty */
-        if(SqrtInformation_.allFinite() == false)
-        {
-          PRINT_WARNING("Square root information is not finite!");
-          Passed = false;
-        }
-        else
-        {
-          if(IsPositiveSemidefinite<Dim>(SqrtInformation_) == false)
-          {
-            PRINT_WARNING("Square root information is not positive semi-definite!");
-            Passed = false;
-          }
-        }
-
-        /** check scaling */
-        if(!std::isfinite(Scaling_))
-        {
-          PRINT_WARNING("Scaling is not finite!");
-          Passed = false;
-        }
-
-        return Passed;
       }
 
-      /** draw a sample */
-      VectorVectorSTL<Dim> DrawSamples(const int Number) const
+      /** check scaling */
+      if (!std::isfinite(Scaling_))
       {
-        /** prepare sample transformation */
-        Eigen::SelfAdjointEigenSolver<MatrixStatic<Dim,Dim>> Solver(this->getCovariance());
-        const MatrixStatic<Dim,Dim> Transform = Solver.eigenvectors() * Solver.eigenvalues().cwiseSqrt().asDiagonal();
+        PRINT_WARNING("Scaling is not finite!");
+        Passed = false;
+      }
 
-        /** set up Gaussian generator */
-        std::default_random_engine Generator;
-        std::normal_distribution<double> Gaussian(0, 1);
+      return Passed;
+    }
 
-        /** crate storage */
-        VectorVectorSTL<Dim> SampleVector;
+    /** draw a sample */
+    VectorVectorSTL<Dim> DrawSamples(const int Number) const
+    {
+      /** prepare sample transformation */
+      Eigen::SelfAdjointEigenSolver<MatrixStatic<Dim, Dim>> Solver(this->getCovariance());
+      const MatrixStatic<Dim, Dim> Transform = Solver.eigenvectors() * Solver.eigenvalues().cwiseSqrt().asDiagonal();
 
-        /** create one [Dim x 1] sample per iteration */
-        for (int n = 0; n < Number; n++)
+      /** set up Gaussian generator */
+      std::default_random_engine Generator;
+      std::normal_distribution<double> Gaussian(0, 1);
+
+      /** crate storage */
+      VectorVectorSTL<Dim> SampleVector;
+
+      /** create one [Dim x 1] sample per iteration */
+      for (int n = 0; n < Number; n++)
+      {
+        libRSF::VectorStatic<Dim> Sample;
+
+        /** draw samples */
+        for (int m = 0; m < Dim; m++)
         {
-          libRSF::VectorStatic<Dim> Sample;
-
-          /** draw samples */
-          for (int m = 0; m < Dim; m++)
-          {
-            Sample(m) = Gaussian(Generator);
-          }
-
-          /** transform according to distribution */
-          Sample = Transform * Sample + this->Mean_;
-
-          /** store them */
-          SampleVector.push_back(Sample);
+          Sample(m) = Gaussian(Generator);
         }
 
-        return SampleVector;
+        /** transform according to distribution */
+        Sample = Transform * Sample + this->Mean_;
+
+        /** store them */
+        SampleVector.push_back(Sample);
       }
 
-    private:
-      void updateScaling_()
-      {
-        Scaling_ = calculateNormalization_();
-      }
+      return SampleVector;
+    }
 
-      double calculateNormalization_()
-      {
-        return Weight_(0, 0) * SqrtInformation_.determinant();
-      }
+   private:
+    void updateScaling_()
+    {
+      Scaling_ = calculateNormalization_();
+    }
 
-      MatrixStatic<Dim, 1> Mean_;
-      MatrixStatic<1, 1> Weight_;
-      MatrixStatic<Dim, Dim> SqrtInformation_;
-      double Scaling_;
+    double calculateNormalization_()
+    {
+      return Weight_(0, 0) * SqrtInformation_.determinant();
+    }
+
+    MatrixStatic<Dim, 1> Mean_;
+    MatrixStatic<1, 1> Weight_;
+    MatrixStatic<Dim, Dim> SqrtInformation_;
+    double Scaling_;
   };
 
   /** compare functions for ordering */
   template <int Dim>
-  bool compareByMode(const GaussianComponent<Dim> & a, const GaussianComponent<Dim> & b)
+  bool compareByMode(const GaussianComponent<Dim> &a, const GaussianComponent<Dim> &b)
   {
     return (a.getWeight()(0) * a.getSqrtInformation().determinant()) > (b.getWeight()(0) * b.getSqrtInformation().determinant());
   }
 
   template <int Dim>
-  bool compareByMean(const GaussianComponent<Dim> & a, const GaussianComponent<Dim> & b)
+  bool compareByMean(const GaussianComponent<Dim> &a, const GaussianComponent<Dim> &b)
   {
     return a.getMean().sum() < b.getMean().sum();
   }
 
   template <int Dim>
-  bool compareByAbsMean(const GaussianComponent<Dim> & a, const GaussianComponent<Dim> & b)
+  bool compareByAbsMean(const GaussianComponent<Dim> &a, const GaussianComponent<Dim> &b)
   {
     return std::abs(a.getMean().sum()) < std::abs(b.getMean().sum());
   }
 
   template <int Dim>
-  bool compareByWeight(const GaussianComponent<Dim> & a, const GaussianComponent<Dim> & b)
+  bool compareByWeight(const GaussianComponent<Dim> &a, const GaussianComponent<Dim> &b)
   {
     return a.getWeight()(0) > b.getWeight()(0);
   }
 
   template <int Dim>
-  bool compareByLOSness(const GaussianComponent<Dim> & a, const GaussianComponent<Dim> & b)
+  bool compareByLOSness(const GaussianComponent<Dim> &a, const GaussianComponent<Dim> &b)
   {
-    return (a.getWeight()(0) * a.getSqrtInformation().determinant() / (std::abs(a.getMean().sum()) + 1e-6))
-           >
+    return (a.getWeight()(0) * a.getSqrtInformation().determinant() / (std::abs(a.getMean().sum()) + 1e-6)) >
            (b.getWeight()(0) * b.getSqrtInformation().determinant() / (std::abs(b.getMean().sum()) + 1e-6));
   }
 
   /** Bhattacharyya distance for merging */
   template <int Dim>
-  double CalculateBhattacharyyaDistance(const GaussianComponent<Dim> & Gaussian1, const GaussianComponent<Dim> & Gaussian2)
+  double CalculateBhattacharyyaDistance(const GaussianComponent<Dim> &Gaussian1, const GaussianComponent<Dim> &Gaussian2)
   {
     MatrixStatic<Dim, Dim> Cov1 = Gaussian1.getCovariance();
     MatrixStatic<Dim, Dim> Cov2 = Gaussian2.getCovariance();
@@ -465,12 +486,12 @@ namespace libRSF
 
     MatrixStatic<1, 1> Mahala = 0.125 * MeanDiff.transpose() * CovMean.inverse() * MeanDiff;
 
-    return Mahala(0) + 0.5 * log(CovMean.determinant() / sqrt(Cov1.determinant()*Cov2.determinant()));
+    return Mahala(0) + 0.5 * log(CovMean.determinant() / sqrt(Cov1.determinant() * Cov2.determinant()));
   }
 
   /** merge two Gaussians */
   template <int Dim>
-  GaussianComponent<Dim> MergeGaussians (const GaussianComponent<Dim> &Gaussian1, const GaussianComponent<Dim> &Gaussian2)
+  GaussianComponent<Dim> MergeGaussians(const GaussianComponent<Dim> &Gaussian1, const GaussianComponent<Dim> &Gaussian2)
   {
     MatrixStatic<1, 1> Weight12 = Gaussian1.getWeight() + Gaussian2.getWeight();
     MatrixStatic<Dim, 1> Mean12 = (Gaussian1.getMean() * Gaussian1.getWeight() + Gaussian2.getMean() * Gaussian2.getWeight()).array() / Weight12(0);
@@ -483,6 +504,6 @@ namespace libRSF
     return Gaussian12;
   }
 
-}
+}  // namespace libRSF
 
-#endif // GAUSSIANCOMPONENT_H
+#endif  // GAUSSIANCOMPONENT_H

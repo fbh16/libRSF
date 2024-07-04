@@ -34,7 +34,7 @@ namespace libRSF
 
     File.open(Filename);
     std::getline(File, Buffer);
-
+    // std::cout << Buffer.length() << std::endl;
     while(Buffer.length() > 0)
     {
       SensorData.addElement(Data(Buffer));

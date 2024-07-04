@@ -44,6 +44,7 @@ namespace libRSF
       /** construct factor and store error model */
       explicit ConstantValueFactorBase(ErrorType &Error)
       {
+        // std::cout << "Construct" << std::endl;
         this->Error_ = Error;
       }
 
@@ -54,6 +55,11 @@ namespace libRSF
         VectorRefConst<T, Dim> V1(Value1);
         VectorRefConst<T, Dim> V2(Value2);
 
+        // std::cout << "ConstValue_Evaluate:\n" 
+        //           << "V1: " << V1[0] << "  " << V1[1] << "  " << V1[2] << "\n" 
+        //           << "V2: " << V2[0] << "  " << V2[1] << "  " << V2[2] << "\n"
+        //           << "V2-V1: " << (V2 - V1)[0] << "  " << (V2 - V1)[1] << "  " << (V2 - V1)[2] << std::endl;
+        
         return V2 - V1;
       }
 
@@ -63,19 +69,31 @@ namespace libRSF
                       const T* const ValueNew,
                       ParamsType... Params) const
       {
+        // std::cout << "operator" << std::endl;
         return this->Error_.template weight<T>(this->Evaluate(ValueOld,
                                                ValueNew),
                                                Params...);
-
       }
 
       /** predict the next state for initialization, order is the same as for Evaluate() */
       void predict(const std::vector<double*> &StatePointers) const
       {
+        // std::cout << *StatePointers.at(0) << std::endl;
+        // std::cout << *StatePointers.at(1) << std::endl;
+        // std::cout << "predict" << std::endl;
         VectorRefConst<double, Dim> V1(StatePointers.at(0));
         VectorRef<double, Dim> V2(StatePointers.at(1));
+        
+        // std::cout << *StatePointers.at(0) << std::endl;
+        // std::cout << *StatePointers.at(1) << std::endl;
 
         V2 = V1;
+        
+        // std::cout << *StatePointers.at(0) << std::endl;
+        // std::cout << *StatePointers.at(1) << std::endl;
+
+        // std::cout << "old: " << V1 << std::endl;
+        // std::cout << "new: " << V2 << std::endl;
       }
   };
 

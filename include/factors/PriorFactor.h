@@ -32,146 +32,169 @@
 #ifndef PRIORFACTOR_H
 #define PRIORFACTOR_H
 
-#include "BaseFactor.h"
-#include "../VectorMath.h"
 #include "../Geometry.h"
+#include "../VectorMath.h"
+#include "BaseFactor.h"
 
 namespace libRSF
 {
-  template <typename ErrorType, int Dim>  class PriorFactorBase : public BaseFactor<ErrorType, true, false, Dim>
+  template <typename ErrorType, int Dim>
+  class PriorFactorBase : public BaseFactor<ErrorType, true, false, Dim>
   {
-    public:
-      /** construct factor and store measurement */
-      PriorFactorBase(ErrorType &Error, const Data &PriorMeasurement)
-      {
-        this->Error_ = Error;
-        this->MeasurementVector_.resize(Dim);
-        this->MeasurementVector_ = PriorMeasurement.getMean();
-      }
+   public:
+    /** construct factor and store measurement */
+    PriorFactorBase(ErrorType &Error, const Data &PriorMeasurement)
+    {
+      this->Error_ = Error;
+      this->MeasurementVector_.resize(Dim);
+      this->MeasurementVector_ = PriorMeasurement.getMean();  // 当前帧观测之一
+    }
 
-      /** geometric error model */
-      template <typename T>
-      VectorT<T, Dim> Evaluate(const T* const StatePointer) const
-      {
-        VectorRefConst<T, Dim> State(StatePointer);
+    /** geometric error model */
+    template <typename T>
+    VectorT<T, Dim> Evaluate(const T * const StatePointer) const
+    {
+      VectorRefConst<T, Dim> State(StatePointer);
+      // std::cout << "MeasurementVector:\n" << this->MeasurementVector_ << std::endl;
+        // return State - this->MeasurementVector_; //* x-z
+      //   std::cout << "State(StatePointer) " << State << std::endl;
+      return State;  //* x
+    }
 
-        return State - this->MeasurementVector_;
-      }
+    /** combine probabilistic and geometric model */
+    template <typename T, typename... ParamsType>
+    bool operator()(const T * const State, ParamsType... Params) const
+    {
+      return this->Error_.template weight<T>(this->Evaluate(State),
+                                             Params...);
+    }
 
-      /** combine probabilistic and geometric model */
-      template <typename T, typename... ParamsType>
-      bool operator()(const T* const State, ParamsType... Params) const
-      {
-        return this->Error_.template weight<T>(this->Evaluate(State),
-                                               Params...);
-      }
+    /** predict the next state for initialization */
+    void predict(const std::vector<double *> &StatePointers) const
+    {
+      /** map pointer to vectors */
+      VectorRef<double, Dim> State(StatePointers.at(0));
 
-      /** predict the next state for initialization */
-      void predict(const std::vector<double*> &StatePointers) const
-      {
-        /** map pointer to vectors */
-        VectorRef<double, Dim> State(StatePointers.at(0));
-
-        State = this->MeasurementVector_;
-      }
+      State = this->MeasurementVector_;
+    }
   };
-
 
   template <typename ErrorType>
   class PriorFactorAngle : public BaseFactor<ErrorType, true, false, 1>
   {
-    public:
-      /** construct factor and store measurement */
-      PriorFactorAngle(ErrorType &Error, const Data &PriorAngle)
-      {
-        this->Error_ = Error;
-        this->MeasurementVector_.resize(1);
-        this->MeasurementVector_ = PriorAngle.getMean();
-      }
+   public:
+    /** construct factor and store measurement */
+    PriorFactorAngle(ErrorType &Error, const Data &PriorAngle)
+    {
+      this->Error_ = Error;
+      this->MeasurementVector_.resize(1);
+      this->MeasurementVector_ = PriorAngle.getMean();
+    }
 
-      /** geometric error model */
-      template <typename T>
-      VectorT<T, 1> Evaluate(const T* const Angle) const
-      {
-        VectorRefConst<T, 1> AngleVector(Angle);
+    /** geometric error model */
+    template <typename T>
+    VectorT<T, 1> Evaluate(const T * const Angle) const
+    {
+      VectorRefConst<T, 1> AngleVector(Angle);
 
-        return NormalizeAngleVector<T, 1>(AngleVector - this->MeasurementVector_.template cast<T>());
-      }
+      return NormalizeAngleVector<T, 1>(AngleVector - this->MeasurementVector_.template cast<T>());
+    }
 
-      /** combine probabilistic and geometric model */
-      template <typename T, typename... ParamsType>
-      bool operator()(const T* const State, ParamsType... Params) const
-      {
-        return this->Error_.template weight<T>(this->Evaluate(State),
-                                               Params...);
-      }
+    /** combine probabilistic and geometric model */
+    template <typename T, typename... ParamsType>
+    bool operator()(const T * const State, ParamsType... Params) const
+    {
+      return this->Error_.template weight<T>(this->Evaluate(State),
+                                             Params...);
+    }
 
-      /** predict the next state for initialization */
-      void predict(const std::vector<double*> &StatePointers) const
-      {
-        /** map pointer to vectors */
-        VectorRef<double, 1> State(StatePointers.at(0));
+    /** predict the next state for initialization */
+    void predict(const std::vector<double *> &StatePointers) const
+    {
+      /** map pointer to vectors */
+      VectorRef<double, 1> State(StatePointers.at(0));
 
-        State = this->MeasurementVector_;
-      }
+      State = this->MeasurementVector_;
+    }
   };
 
   template <typename ErrorType>
   class PriorFactorQuaternion : public BaseFactor<ErrorType, true, false, 4>
   {
-    public:
-      /** construct factor and store measurement */
-      PriorFactorQuaternion(ErrorType &Error, const Data &PriorQuaternion)
-      {
-        this->Error_ = Error;
-        this->MeasurementVector_.resize(4);
-        this->MeasurementVector_ = PriorQuaternion.getMean();
-      }
+   public:
+    /** construct factor and store measurement */
+    PriorFactorQuaternion(ErrorType &Error, const Data &PriorQuaternion)
+    {
+      this->Error_ = Error;
+      this->MeasurementVector_.resize(4);
+      this->MeasurementVector_ = PriorQuaternion.getMean();
+    }
 
-      /** geometric error model */
-      template <typename T>
-      VectorT<T, 3> Evaluate(const T* const Quaternion) const
-      {
-        QuaternionRefConst<T> Q1(Quaternion);
+    /** geometric error model */
+    template <typename T>
+    VectorT<T, 3> Evaluate(const T * const Quaternion) const
+    {
+      QuaternionRefConst<T> Q1(Quaternion);
 
-        return QuaternionError<T>(Q1, VectorToQuaternion<double>(this->MeasurementVector_).template cast<T>());
-      }
+      return QuaternionError<T>(Q1, VectorToQuaternion<double>(this->MeasurementVector_).template cast<T>());
+    }
 
-      /** combine probabilistic and geometric model */
-      template <typename T, typename... ParamsType>
-      bool operator()(const T* const State, ParamsType... Params) const
-      {
-        return this->Error_.template weight<T>(this->Evaluate(State),
-                                               Params...);
-      }
+    /** combine probabilistic and geometric model */
+    template <typename T, typename... ParamsType>
+    bool operator()(const T * const State, ParamsType... Params) const
+    {
+      return this->Error_.template weight<T>(this->Evaluate(State),
+                                             Params...);
+    }
 
-      /** predict the next state for initialization */
-      void predict(const std::vector<double*> &StatePointers) const
-      {
-        /** map pointer to vectors */
-        VectorRef<double, 4> State(StatePointers.at(0));
+    /** predict the next state for initialization */
+    void predict(const std::vector<double *> &StatePointers) const
+    {
+      /** map pointer to vectors */
+      VectorRef<double, 4> State(StatePointers.at(0));
 
-        State = this->MeasurementVector_;
-      }
+      State = this->MeasurementVector_;
+    }
   };
 
   /** compile time mapping from factor type enum to corresponding factor class */
-  template<typename ErrorType>
-  struct FactorTypeTranslator<FactorType::Prior1, ErrorType> {using Type = PriorFactorBase<ErrorType, 1>;};
-  template<typename ErrorType>
-  struct FactorTypeTranslator<FactorType::Prior2, ErrorType> {using Type = PriorFactorBase<ErrorType, 2>;};
-  template<typename ErrorType>
-  struct FactorTypeTranslator<FactorType::Prior3, ErrorType> {using Type = PriorFactorBase<ErrorType, 3>;};
-  template<typename ErrorType>
-  struct FactorTypeTranslator<FactorType::Prior4, ErrorType> {using Type = PriorFactorBase<ErrorType, 4>;};
-  template<typename ErrorType>
-  struct FactorTypeTranslator<FactorType::Prior9, ErrorType> {using Type = PriorFactorBase<ErrorType, 9>;};
+  template <typename ErrorType>
+  struct FactorTypeTranslator<FactorType::Prior1, ErrorType>
+  {
+    using Type = PriorFactorBase<ErrorType, 1>;
+  };
+  template <typename ErrorType>
+  struct FactorTypeTranslator<FactorType::Prior2, ErrorType>
+  {
+    using Type = PriorFactorBase<ErrorType, 2>;
+  };
+  template <typename ErrorType>
+  struct FactorTypeTranslator<FactorType::Prior3, ErrorType>
+  {
+    using Type = PriorFactorBase<ErrorType, 3>;
+  };
+  template <typename ErrorType>
+  struct FactorTypeTranslator<FactorType::Prior4, ErrorType>
+  {
+    using Type = PriorFactorBase<ErrorType, 4>;
+  };
+  template <typename ErrorType>
+  struct FactorTypeTranslator<FactorType::Prior9, ErrorType>
+  {
+    using Type = PriorFactorBase<ErrorType, 9>;
+  };
 
-  template<typename ErrorType>
-  struct FactorTypeTranslator<FactorType::PriorQuat, ErrorType> {using Type = PriorFactorQuaternion<ErrorType>;};
-  template<typename ErrorType>
-  struct FactorTypeTranslator<FactorType::PriorAngle, ErrorType> {using Type = PriorFactorAngle<ErrorType>;};
+  template <typename ErrorType>
+  struct FactorTypeTranslator<FactorType::PriorQuat, ErrorType>
+  {
+    using Type = PriorFactorQuaternion<ErrorType>;
+  };
+  template <typename ErrorType>
+  struct FactorTypeTranslator<FactorType::PriorAngle, ErrorType>
+  {
+    using Type = PriorFactorAngle<ErrorType>;
+  };
 
-}
+}  // namespace libRSF
 
-#endif // PRIORFACTOR_H
+#endif  // PRIORFACTOR_H

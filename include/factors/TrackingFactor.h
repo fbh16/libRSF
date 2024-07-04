@@ -51,8 +51,8 @@ namespace libRSF
       template <typename T>
       VectorT<T, 1> Evaluate(const T* const Value1, const T* const Value2) const
       {
-        VectorRefConst<T, 3> V1(Value1);
-        VectorRefConst<T, 3> V2(Value2);
+        VectorRefConst<T, 3> V1(Value1); //第t帧第m个目标的三维位置
+        VectorRefConst<T, 3> V2(Value2); //第t帧第n个目标的三维位置
         VectorT<T, 1> Error;
 
         Error(0) = 1.0 / ((V2 - V1).squaredNorm() + 1e-10); /**< added small constant for numerical stability */
