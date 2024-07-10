@@ -55,10 +55,13 @@ namespace libRSF
     VectorT<T, Dim> Evaluate(const T * const StatePointer) const
     {
       VectorRefConst<T, Dim> State(StatePointer);
-      // std::cout << "MeasurementVector:\n" << this->MeasurementVector_ << std::endl;
-        // return State - this->MeasurementVector_; //* x-z
-      //   std::cout << "State(StatePointer) " << State << std::endl;
-      return State;  //* x
+         
+    //   std::cout << "Evaluate:\n" 
+    //             << "MeasurementVector: " << this->MeasurementVector_.transpose()
+    //             << "\nState:\n" << State << "\n" << std::endl;
+
+      return State - this->MeasurementVector_; //* x-z
+    //   return State;  //* x
     }
 
     /** combine probabilistic and geometric model */
@@ -74,8 +77,10 @@ namespace libRSF
     {
       /** map pointer to vectors */
       VectorRef<double, Dim> State(StatePointers.at(0));
-
       State = this->MeasurementVector_;
+      std::cout << "predict\n" 
+                // << "MeasurementVector_: " << this->MeasurementVector_.transpose()
+                << "State: " << State.transpose() << "\n" << std::endl; 
     }
   };
 

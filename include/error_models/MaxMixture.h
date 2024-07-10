@@ -92,7 +92,7 @@ namespace libRSF
           {
             double logLinearPart = log(Mixture_.template getLinearPartOfComponent<T>(nComponent, RawError) / Normalization_);
             if (std::isnan(logLinearPart)) {
-                std::cout << std::isnan(logLinearPart) << std::endl;
+                // std::cout << std::isnan(logLinearPart) << std::endl;
                 logLinearPart = 0;
             } 
             //*更改之处

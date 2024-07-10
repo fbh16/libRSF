@@ -72,7 +72,8 @@ namespace libRSF
     TrackingDetectionDim, TrackingDetectionRot, TrackingDetectionVel,
     TrackingDetectionDimRot, TrackingDetectionVelDim, TrackingDetectionVelRot,
     TrackingDetectionVelDimRot,
-    Marginal
+    Marginal,
+    // Association2, Association3
   };
 
   /** more general classification */
@@ -226,7 +227,7 @@ namespace libRSF
     {"motion",AbstractFactorType::MotionModel},
     {"loop",AbstractFactorType::LoopClosure},
     {"prior",AbstractFactorType::Prior},
-    {"pressure",AbstractFactorType::Pressure}
+    {"pressure",AbstractFactorType::Pressure,}
   };
 
   const std::map<std::string, ErrorModelType> ErrorModelTypeDict =

@@ -33,6 +33,7 @@
 #define GAUSSIANCOMPONENT_H
 
 #include <cmath>
+#include <iomanip>
 #include <random>
 
 #include "../Messages.h"
@@ -149,7 +150,6 @@ namespace libRSF
 
       /** shift by mean */
       WeightedError = Error + Mean_.template cast<T>();
-      //   WeightedError = Error - Mean_.template cast<T>(); //!
 
       /** scale with information matrix */
       WeightedError = SqrtInformation_.template cast<T>() * WeightedError;
@@ -161,7 +161,7 @@ namespace libRSF
     template <typename T>
     double getLinearPart(const VectorT<T, Dim> &Error) const
     {
-    //   std::cout << "SqrtInformation_\n" << SqrtInformation_ << std::endl; 
+      //   std::cout << "SqrtInformation_\n" << SqrtInformation_ << std::endl;
       return Scaling_;
     }
 
@@ -173,15 +173,51 @@ namespace libRSF
 
     //* estimate process
     /** compute probability for E step of EM */
-    Vector computeLikelihood(const ErrorMatType &Errors, const bool EnablNegLog = true) const
+    Vector computeLikelihood(const ErrorMatType &Errors, FactorType CurrentFactorType, const bool EnablNegLog = false) const
     {
-      /** apply mean */
-      ErrorMatType WeightedError = (Errors.array().colwise() + Mean_.array()).matrix(); //* (x-z)+u
+      /***
+       ** i:状态索引； j:观测索引，也是GMM成分索引
+       ** e_i = (x_i - z_j)
+       ** e_i - u_j
+       */
+      ErrorMatType WeightedError = (Errors.array().colwise() + Mean_.array()).matrix();  //* (x-z)-u
+
+      if (CurrentFactorType == FactorType::TrackingDetection)
+      {
+        std::cout << "{e_i - u_j}\n"
+                  << WeightedError << "\n"
+                  << std::endl;
+      }
 
       /** multiply each row with square root information */
       for (Index n = 0; n < WeightedError.cols(); ++n)
       {
+        /***
+         **  I_j * [e_i - u_j]
+         */
         WeightedError.col(n) = (WeightedError.col(n).transpose() * SqrtInformation_).transpose();  //* I*[(x-z)+u]
+      }
+
+      if (CurrentFactorType == FactorType::TrackingDetection)
+      {
+        std::cout << std::scientific << std::setprecision(1);
+        std::cout << "I_j * {e_i - u_j}\n"
+                  << WeightedError << "\n"
+                  << std::endl;
+
+        std::cout << "exp{ -0.5 * |I_j * {e_i - u_j}|^2} }\n"
+                  << (WeightedError.array().square().colwise().sum() / -2.0).exp() << "\n"
+                  << std::endl;
+
+        std::cout << "Scaling = " << Weight_(0, 0) << " * " << SqrtInformation_.determinant() << " = " << Scaling_ << "\n"
+                  << std::endl;
+
+        std::cout << "w * det(I) * exp{-0.5 * |I_j * {e_i - u_j}|^2}\n"
+                  << (WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_ << "\n"
+                  << std::endl;
+
+        //   std::cout << "-log(w * det(I) * exp{-0.5 * |I_j * {e_i - u_j}|^2})\n"
+        //             << -log(WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_ << "\n" << std::endl;
       }
 
       /***
@@ -192,14 +228,25 @@ namespace libRSF
       Vector Likelihood;
       if (EnablNegLog)
       {
-        Likelihood = -log(WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_;
+        return (-log(WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_).matrix();
       }
       else
       {
-        Likelihood = ((WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_);
+        return ((WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_).matrix();
       }
-      //   return ((WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_).matrix();
-      return (Likelihood).matrix();
+    }
+
+    Vector computeLikelihood(const ErrorMatType &Errors) const
+    {
+      ErrorMatType WeightedError = (Errors.array().colwise() + Mean_.array()).matrix();  //* (x-z)-u
+
+      /** multiply each row with square root information */
+      for (Index n = 0; n < WeightedError.cols(); ++n)
+      {
+        WeightedError.col(n) = (WeightedError.col(n).transpose() * SqrtInformation_).transpose();  //* I*[(x-z)+u]
+      }
+
+      return ((WeightedError.array().square().colwise().sum() / -2.0).exp() * Scaling_).matrix();
     }
 
     /** estimate parameters for M step of EM */
@@ -208,17 +255,14 @@ namespace libRSF
                             bool EstimateMean)
     {
       const double LikelihoodSum = Likelihoods.sum();
-      //   std::cout << "LikelihoodSum " << LikelihoodSum << std::endl;
+
       /** estimate weight */
-      Weight_(0) = LikelihoodSum / static_cast<double>(Likelihoods.rows());  // Likelihoods.rows()样本数
+      Weight_(0) = LikelihoodSum / static_cast<double>(Likelihoods.rows());
 
       /** estimate mean */
       if (EstimateMean)
       {
-        // std::cout << "EstimateMean " << EstimateMean << std::endl;
         Mean_ = -((Errors.array().rowwise() * Likelihoods.transpose().array()).rowwise().sum() / LikelihoodSum).matrix();
-        // std::cout << "Mean " << Mean_ << std::endl;
-        // Mean_ = ((Errors.array().rowwise() * Likelihoods.transpose().array()).rowwise().sum() / LikelihoodSum).matrix();  // 0703
       }
 
       /** estimate covariance */
@@ -226,12 +270,58 @@ namespace libRSF
       for (Index n = 0; n < Errors.cols(); ++n)
       {
         MatrixStatic<Dim, 1> Diff = Errors.col(n) + Mean_;
-        // std::cout << "Error: " << Errors.col(n).transpose() << std::endl;
-        // std::cout << "Mean_: " << Mean_.transpose() << std::endl;
-        // std::cout << "Diff: " << Diff.transpose() << std::endl;
         Covariance += Diff * Diff.transpose() * Likelihoods(n);
       }
       Covariance.array() /= LikelihoodSum;
+      SqrtInformation_ = InverseSquareRoot(Covariance);
+
+      /** check for degenerated square root information matrix */
+      if (SqrtInformation_.array().isFinite().all() == false)
+      {
+        /** disable component if degenerated */
+        Weight_.setZero();
+        Mean_.setZero();
+        SqrtInformation_ = MatrixStatic<Dim, Dim>::Identity();
+      }
+
+      /** check for extreme numerical values */
+      if ((SqrtInformation_.array() > 1e10).any() == true)
+      {
+#ifndef NDEBUG
+        PRINT_WARNING("Square root information is too high: ", SqrtInformation_.maxCoeff());
+        PRINT_WARNING("Limit Square root information to 1e10 for numerical reasons!");
+#endif
+        SqrtInformation_ = (SqrtInformation_.array() < 1e10).select(SqrtInformation_, 1e10);
+      }
+
+      updateScaling_();
+    }
+
+    void estimateParameters(const ErrorMatType &Errors,
+                            const Vector &Likelihoods,
+                            bool EstimateMean,
+                            const Vector &myLikelihoods)
+    {
+      const double LikelihoodSum = Likelihoods.sum();
+      const double myLikelihoodSum = myLikelihoods.sum();
+      /** estimate weight */
+      Weight_(0) = LikelihoodSum / static_cast<double>(Likelihoods.rows());
+      //   std::cout << "myLikelihoodSum: "<< LikelihoodSum <<"\n"<<"n: "<<static_cast<double>(Likelihoods.rows()) << "\n"<<"Weight: " << Weight_(0) << std::endl;
+
+      /** estimate mean */
+      if (EstimateMean)
+      {
+        Mean_ = -((Errors.array().rowwise() * myLikelihoods.transpose().array()).rowwise().sum() / myLikelihoodSum).matrix();
+      }
+
+      /** estimate covariance */
+      MatrixStatic<Dim, Dim> Covariance = MatrixStatic<Dim, Dim>::Zero();
+      for (Index n = 0; n < Errors.cols(); ++n)
+      {
+        MatrixStatic<Dim, 1> Diff = Errors.col(n) + Mean_;
+        Covariance += Diff * Diff.transpose() * myLikelihoods(n);
+      }
+      Covariance.array() /= myLikelihoodSum;
       SqrtInformation_ = InverseSquareRoot(Covariance);
 
       /** check for degenerated square root information matrix */

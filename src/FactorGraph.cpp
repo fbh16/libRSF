@@ -1020,9 +1020,6 @@ namespace libRSF
      * 0 -0.041068 -0.032046
      */
     ErrorMatrix = Eigen::Map<Matrix, Eigen::Unaligned, Eigen::Stride<1, Dynamic>>(ErrorVector.data(), Dim, Length, Eigen::Stride<1, Dynamic>(1, Dim));
-
-    // std::cout << "ErrorMatrix: " << ErrorMatrix.rows() << "  " << ErrorMatrix.cols() << std::endl;
-    // std::cout << ErrorMatrix << std::endl;
   }
 
   void FactorGraph::computeUnweightedError(const FactorType CurrentFactorType, const string &Name, StateDataSet &ErrorData)

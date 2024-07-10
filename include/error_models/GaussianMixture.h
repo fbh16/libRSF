@@ -35,6 +35,7 @@
 #include <Eigen/Dense>
 #include <algorithm>
 #include <iostream>
+#include <iomanip>
 #include <unsupported/Eigen/SpecialFunctions>
 
 #include "../Data.h"
@@ -207,7 +208,8 @@ namespace libRSF
     }
 
     //* estimate process 
-    bool estimate(const MatrixStatic<Dim, Dynamic> &DataMatrix, const EstimationConfig &Config, Matrix &myProbability)
+    bool estimate(const MatrixStatic<Dim, Dynamic> &DataMatrix, const EstimationConfig &Config,
+                  Matrix &myProbability, FactorType CurrentFactorType)
     {
       const int N = DataMatrix.cols();  //* 观测因子个数(不一定等于状态数)
       /** check size */
@@ -235,6 +237,12 @@ namespace libRSF
       /** iterate until convergence */
       while ((!Converged && !ReachedMaxIteration) || Merged || Pruned)
       {
+
+        if (CurrentFactorType == FactorType::TrackingDetection) 
+        {
+            std::cout << "****** Current Iteration Step " << k << " ******" << std::endl;
+        }
+          
         /** init required variables */
         int M = Mixture_.size();  // GMM成分数量（观测数）
 
@@ -246,14 +254,13 @@ namespace libRSF
           case ErrorModelTuningType::EM:
           {
             // GMM E-step: 基于假设的模型参数初值 估计隐藏变量H={a_ij}
-            Matrix Probability(M, N);                                           // M->观测(成分)数, N->观测因子(状态)数
-            LikelihoodSum = this->computeProbability(DataMatrix, Probability);  // 滑动窗口中每个状态n属于GMM第m组成分的概率
-            myProbability = Probability;
-
+            Matrix Probability(M, N);// M->观测(成分)数, N->观测因子(状态)数
+            LikelihoodSum = this->computeProbability(DataMatrix, Probability, CurrentFactorType, myProbability);  // 滑动窗口中每个状态n属于GMM第m组成分的概率
+            
             // this->computeNegLogLikelihood(DataMatrix, myProbability, false);  // 用于获取隐式匹配结果
 
             // GMM M-Step: maximum likelihood
-            this->computeMixtureParameters(DataMatrix, Probability, ModifiedConfig);  // 根据隐藏变量H求每组成分服从的分布的参数
+            this->computeMixtureParameters(DataMatrix, Probability, ModifiedConfig, myProbability);  // 根据隐藏变量H求每组成分服从的分布的参数
           }
           break;
 
@@ -333,7 +340,13 @@ namespace libRSF
 
         //** check for convergence */
         const double LikelihoodChange = std::abs(LikelihoodSum - LikelihoodSumOld) / LikelihoodSum;
-        std::cout << "Iteration: " << k << "\t" << "LikelihoodChange: " << LikelihoodChange  << std::endl;
+        
+        if (CurrentFactorType == FactorType::TrackingDetection) {
+        std::cout << "LikelihoodChange: " 
+                  << "( " << LikelihoodSum << " - " << LikelihoodSumOld << " ) / " << LikelihoodSum 
+                  << " = " << LikelihoodChange  << "\n\n" << std::endl;
+        }
+
         if (k > 1 && LikelihoodChange < Config.MinLikelihoodChange)
         {
           Converged = true;
@@ -353,8 +366,6 @@ namespace libRSF
           ReachedMaxIteration = false;
         }
 
-        // std::cout << k << "\t" << LikelihoodChange << "\t" << Converged << "\t" << ReachedMaxIteration << std::endl;
-
         /** save for next iteration */
         LikelihoodSumOld = LikelihoodSum;
 
@@ -371,7 +382,9 @@ namespace libRSF
 
       /** check if any GMM parameter is consistent after the estimation (only in debug mode)*/
       bool GMMConsistency = true;
-#ifndef NDEBUG
+
+#ifndef NDEBUG 
+      if (CurrentFactorType == FactorType::TrackingDetection) {
       for (int m = 0; m < static_cast<int>(Mixture_.size()); m++)
       {
         if (Mixture_.at(m).checkParameters() == false)
@@ -384,8 +397,9 @@ namespace libRSF
       PRINT_LOGGING("GMM estimation started with ", N, " samples.");
       PRINT_LOGGING("GMM estimation ended with ", Mixture_.size(), " components, after ", k - 1, " iterations.");
       this->printParameter();
+      }
 #endif
-
+      
       return GMMConsistency;
     }
 
@@ -420,6 +434,7 @@ namespace libRSF
       /** iterate until convergence */
       while ((!Converged && !ReachedMaxIteration) || Merged || Pruned)
       {
+        std::cout << "Current Iteration Step = " << k << std::endl;
         /** init required variables */
         int M = Mixture_.size();  // GMM成分数量（观测数）
 
@@ -431,11 +446,8 @@ namespace libRSF
             // GMM E-step: 基于假设的模型参数初值 估计隐藏变量H={a_ij}
             Matrix Probability(M, N);                                           // M->观测(成分)数, N->观测因子(状态)数
             LikelihoodSum = this->computeProbability(DataMatrix, Probability);  // Probability: 每个样本n属于GMM第m组成分的概率
-            // std::cout << "Probability(rows, cols):\n" << Probability.rows() << " " << Probability.cols() << std::endl;
-
             // GMM M-Step: maximum likelihood
             this->computeMixtureParameters(DataMatrix, Probability, ModifiedConfig);  // 根据隐藏变量H求每组成分服从的分布的参数
-            // this->computeMixtureParametersMAP(DataMatrix, Probability, ModifiedConfig);
           }
           break;
 
@@ -645,6 +657,22 @@ namespace libRSF
     //* estimate process 
     void computeLikelihood(const ErrorMatType &DataVector, Matrix &Likelihood) const
     {
+      const int M = Mixture_.size();
+      const int N = DataVector.cols();
+      /** adapt size of output matrix */
+      Likelihood.resize(M, N);
+      /** loop over components*/
+      for (int m = 0; m < M; ++m)
+      {
+        Likelihood.row(m) = Mixture_.at(m).computeLikelihood(DataVector);
+      }
+      /** remove NaNs */
+      Likelihood = (Likelihood.array().isFinite()).select(Likelihood, 0.0);
+    }
+
+    void computeLikelihood(const ErrorMatType &DataVector, Matrix &Likelihood,
+                           FactorType CurrentFactorType) const
+    {
       const int M = Mixture_.size(); /**< number of components */      // 观测数
       const int N = DataVector.cols(); /**< number of data samples */  // 滑动窗口中包含的状态数
 
@@ -655,14 +683,50 @@ namespace libRSF
       for (int m = 0; m < M; ++m)
       {
         //* 求P(e_i | w, u, I^{1/2}), 即每一个观测n 属于第m个状态的概率
-        Likelihood.row(m) = Mixture_.at(m).computeLikelihood(DataVector, false);
+        if (CurrentFactorType == FactorType::TrackingDetection) {
+          std::cout << "****** Component " << m << " ******" << std::endl;
+        }
+        Likelihood.row(m) = Mixture_.at(m).computeLikelihood(DataVector, CurrentFactorType, false);
       }
-      std::cout << "Probability000\n" << Likelihood << std::endl;
+      if (CurrentFactorType == FactorType::TrackingDetection) {
+        std::cout << "Likelihood: row->component; col->matching probability of states\n" << Likelihood << "\n"<< std::endl;
+        // std::cout << "Likelihood: isFinite\n" << Likelihood.array().isFinite() << std::endl;
+      }
       /** remove NaNs */
       Likelihood = (Likelihood.array().isFinite()).select(Likelihood, 0.0);
     }
 
     //* estimate process 
+    double computeProbability(const ErrorMatType &DataVector, Matrix &Probability, 
+                              FactorType CurrentFactorType, Matrix &myProbability) const
+    {
+      const int M = Mixture_.size();   /**< number of components */
+      const int N = DataVector.cols(); /**< number of data samples */
+
+      /** get likelihood */
+      this->computeLikelihood(DataVector, Probability, CurrentFactorType);  // 求每一个样本n 属于第m个成分的概率
+      myProbability = Probability;
+      // this->computeNegLogLikelihood(DataVector, Probability, false);
+
+      const double LikelihoodSum = Probability.sum();  // Eq.5
+        
+      /** normalize over all components */
+    //   for (int n = 0; n < N; ++n)  // N个状态（包括不同时间戳）
+    //   {
+    //     //* 基于GMM第m个成分假设的初值\theta^GMM 估计隐藏变量H^GMM={a_ij}
+    //     Probability.col(n) /= Probability.col(n).sum(); // Eq.18
+    //   }
+      
+      /** remove NaNs (occur if sum of likelihoods is zero) */
+      Probability = (Probability.array().isFinite()).select(Probability, 1.0 / M);
+      myProbability = (myProbability.array().isFinite()).select(myProbability, 1.0 / M);
+      
+      if (CurrentFactorType == FactorType::TrackingDetection) {
+      std::cout << "\nProbability: alpha_ij\n" << Probability << std::endl;
+      }
+      return LikelihoodSum;
+    }
+
     double computeProbability(const ErrorMatType &DataVector, Matrix &Probability) const
     {
       const int M = Mixture_.size();   /**< number of components */
@@ -670,21 +734,17 @@ namespace libRSF
 
       /** get likelihood */
       this->computeLikelihood(DataVector, Probability);  // 求每一个样本n 属于第m个成分的概率
-    //   this->computeNegLogLikelihood(DataVector, Probability, false);
-      
-      std::cout << "Probability111\n" << Probability << std::endl;
-      const double LikelihoodSum = Probability.sum();  // 计算矩阵所有元素之和
-      std::cout << "LikelihoodSum: " << LikelihoodSum << std::endl;
+
+      const double LikelihoodSum = Probability.sum();  // Eq.5
+
       /** normalize over all components */
       for (int n = 0; n < N; ++n)  // N个状态（包括不同时间戳）
       {
-        //* 基于GMM第m个成分假设的初值\theta^GMM 估计隐藏变量H^GMM={a_ij}
-        Probability.col(n) /= Probability.col(n).sum();
+        Probability.col(n) /= Probability.col(n).sum(); // Eq.18
       }
       
       /** remove NaNs (occur if sum of likelihoods is zero) */
       Probability = (Probability.array().isFinite()).select(Probability, 1.0 / M);
-    //   std::cout << "Probability222\n" << Probability << std::endl;
 
       return LikelihoodSum;
     }
@@ -1044,6 +1104,20 @@ namespace libRSF
       }
     }
 
+    void computeMixtureParameters(const ErrorMatType &DataVector, const Matrix &Likelihood, 
+                                  const EstimationConfig &Config, const Matrix &myLikelihood)
+    {
+      const int M = Mixture_.size();
+      for (int m = 0; m < M; m++)
+      {
+        /**
+         ** 根据隐藏变量H^GMM={a_ij}, 估计GMM每一个成分m的权重、均值、协方差
+         *  Likelihood.row(m)是每一个观测的属于GMM第m个成分的一组概率
+         * */
+        Mixture_.at(m).estimateParameters(DataVector, Likelihood.row(m), Config.EstimateMean, myLikelihood.row(m));  // GaussianComponent.h
+      }
+    }
+
     void computeMixtureParametersMAP(const ErrorMatType &DataVector, const Matrix &Likelihood, const EstimationConfig &Config)
     {
       /** sum over components */
@@ -1116,15 +1190,21 @@ namespace libRSF
     void printParameter() const
     {
       //   PRINT_LOGGING("GMM Parameter: Mean                StdDev-Diagonal                Weight");
-      std::string interval1 = "                   ";
-      std::string interval2 = "           ";
-      std::cout << "GMM Parameter:" << interval1 << "Mean" << interval1 << "StdDev-Diagonal" << interval1 << "Weight" << std::endl;
-      for (int n = 0; n < static_cast<int>(Mixture_.size()); ++n)
-      {
-        // PRINT_LOGGING("Component ", n + 1, ":   ", Mixture_.at(n).getMean().transpose(), "       ", Mixture_.at(n).getSqrtInformation().diagonal().cwiseInverse().transpose(), "  ", Mixture_.at(n).getWeight());
-        std::cout << "Component " << n + 1 << ": " << Mixture_.at(n).getMean().transpose() << interval2
-                  << Mixture_.at(n).getSqrtInformation().diagonal().cwiseInverse().transpose()
-                  << interval2 << Mixture_.at(n).getWeight() << std::endl;
+    //   std::string interval1 = "                   ";
+    //   std::string interval2 = "           ";
+    //   std::cout << "GMM Parameter:" << std::endl;
+    //   for (int n = 0; n < static_cast<int>(Mixture_.size()); ++n)
+    //   {
+    //     // PRINT_LOGGING("Component ", n + 1, ":   ", Mixture_.at(n).getMean().transpose(), "       ", Mixture_.at(n).getSqrtInformation().diagonal().cwiseInverse().transpose(), "  ", Mixture_.at(n).getWeight());
+    //     std::cout << "  Component " << n + 1 << ": " << Mixture_.at(n).getMean().transpose() << interval2
+    //               << Mixture_.at(n).getSqrtInformation().diagonal().cwiseInverse().transpose()
+    //               << interval2 << Mixture_.at(n).getWeight() << std::endl;
+    //   }
+      std::cout << "GMM Parameter:" << std::endl;
+      for (int n = 0; n < static_cast<int>(Mixture_.size()); ++n) {
+        std::cout << "  Component " << n + 1 << ": " << std::setw(2) << Mixture_.at(n).getMean().transpose() << "  "
+                  << std::setw(2) << Mixture_.at(n).getSqrtInformation().diagonal().cwiseInverse().transpose() << "  "
+                  << std::setw(2) << Mixture_.at(n).getWeight() << std::endl;
       }
     }
 

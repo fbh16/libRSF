@@ -59,8 +59,8 @@ namespace libRSF
       {
         VectorRefConst<T, 3> PositionState(PositionStatePointer);
 
-        return PositionState - PriorValue;
-        // return PositionState;
+        // return PositionState - PriorValue;
+        return PositionState;
       }
 
       /** combine probabilistic and geometric model */
