@@ -93,8 +93,6 @@ namespace libRSF
     const int StateSize = static_cast<int>(
         StateData_.getElement(Name, Timestamp, StateNumber).getMean().size());
 
-    // std::cout << "798: \n" << StateData_.getElement(Name, Timestamp, StateNumber).getMean() << std::endl;
-
     /** add state vector as parameter block with local parametrization if required */
     switch (StateData_.getElement(Name, Timestamp, StateNumber).getType())
     {
@@ -982,13 +980,6 @@ namespace libRSF
      */
     this->computeUnweightedError(CurrentFactorType, ErrorVector);
 
-    // std::cout << "ErrorVector: " << ErrorVector.size() << std::endl;
-    // for (int i = 0; i < ErrorVector.size(); i++)
-    // {
-    //     std::cout << ErrorVector[i] << " ";
-    // }
-    // std::cout << std::endl;
-
     /** check for empty vector */
     if (ErrorVector.empty())
     {
@@ -1000,16 +991,9 @@ namespace libRSF
     std::vector<FactorID> FactorVector;
     Structure_.getFactorIDs(CurrentFactorType, FactorVector);
 
-    // std::cout << "CurrentFactorType: " << CurrentFactorType << std::endl;
-    // std::cout << "FactorVector:\n";
-    // for (int i = 0; i < FactorVector.size(); i++) {
-    //     std::cout << FactorVector[i].ID << "\t" << FactorVector[i].Number << "\t" << FactorVector[i].Timestamp << std::endl;
-    // }
-
     /** get the dimensions */
     const int Dim = static_cast<int>(ErrorVector.size() / FactorVector.size());  // 行数->维度
     const int Length = static_cast<int>(FactorVector.size());                    // 列数->观测因子个数（不总是等于状态数）
-    // std::cout << "Dim: " << Dim << "\t" << "Length:" << Length << std::endl;
 
     /** map std vector to matrix */
     /**

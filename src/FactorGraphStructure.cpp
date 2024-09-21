@@ -28,12 +28,12 @@ namespace libRSF
   {}
 
   void FactorGraphStructure::getMarginalizationInfo(const std::vector<double*> &BaseStates,
-                                              std::vector<double*> &ConnectedStates,
-                                              std::vector<ceres::ResidualBlockId> &ConnectedFactors,
-                                              std::vector<int> &StateDims,
-                                              std::vector<int> &StateDimsLocal,
-                                              std::vector<StateID> &StateIDs,
-                                              std::vector<DataType> &StateTypes) const
+                                                    std::vector<double*> &ConnectedStates,
+                                                    std::vector<ceres::ResidualBlockId> &ConnectedFactors,
+                                                    std::vector<int> &StateDims,
+                                                    std::vector<int> &StateDimsLocal,
+                                                    std::vector<StateID> &StateIDs,
+                                                    std::vector<DataType> &StateTypes) const
   {
     /** sets to store unique values */
     std::set<double*> BaseStatePointers;

@@ -59,12 +59,31 @@ namespace libRSF
       /** map vector to matrix */
       Vector CovVect = this->getValue(DataElement::Covariance);
 
-    //   MatrixRef<double, Dynamic, Dynamic> Cov(CovVect.data(),
-    //                                           static_cast<int>(sqrt(static_cast<double>(CovVect.size()))),
-    //                                           static_cast<int>(sqrt(static_cast<double>(CovVect.size()))));      
+      std::cout << "CovVect: " << CovVect.transpose() << std::endl;
+    //   std::cout << "CovVect Size: " << CovVect.size() << std::endl;
 
-      Eigen::MatrixXd DiagCov = CovVect.asDiagonal().toDenseMatrix();
-      MatrixRef<double, Dynamic, Dynamic> Cov(DiagCov.data(), DiagCov.rows(), DiagCov.cols());
+    //   std::cout << static_cast<int>(sqrt(static_cast<double>(CovVect.size()))) << "\t"
+    //             << static_cast<int>(sqrt(static_cast<double>(CovVect.size()))) << std::endl;
+      
+      MatrixRef<double, Dynamic, Dynamic> Cov(CovVect.data(),
+                                              static_cast<int>(sqrt(static_cast<double>(CovVect.size()))),
+                                              static_cast<int>(sqrt(static_cast<double>(CovVect.size()))));
+      
+      std::cout << "Cov1:\n" << Cov << std::endl;
+    //   std::cout << "zzz" << std::endl;
+
+    //   std::cout << "Rows1: " << static_cast<int>(sqrt(static_cast<double>(CovVect.size()))) << std::endl;
+    //   std::cout << "Cols1: " << static_cast<int>(sqrt(static_cast<double>(CovVect.size()))) << std::endl;
+
+    //   Eigen::MatrixXd DiagCov = CovVect.asDiagonal().toDenseMatrix();
+
+    //   std::cout << "DiagCov:\n" << DiagCov << std::endl;
+
+    //   MatrixRef<double, Dynamic, Dynamic> Cov(DiagCov.data(), DiagCov.rows(), DiagCov.cols());
+
+    //   std::cout << "Cov:\n" << Cov << std::endl;
+
+
 
       return Cov;
     }
@@ -94,10 +113,12 @@ namespace libRSF
   {
     if (this->checkElement(DataElement::Covariance))
     {
+      std::cout << "111" << std::endl;
       return this->getCovarianceMatrix().diagonal().cwiseSqrt();
     }
     if (this->checkElement(DataElement::CovarianceDiagonal))
     {
+      std::cout << "222" << std::endl;
       return this->getCovarianceDiagonal().cwiseSqrt();
     }
     PRINT_ERROR("Data has no covariance element!");
@@ -129,7 +150,7 @@ namespace libRSF
     // if (this->checkElement(DataElement::Covariance) && this->getValue(DataElement::Covariance).size() == 1)
     if (this->checkElement(DataElement::Covariance))
     {
-    //   std::cout << "Covariance" << std::endl; 
+      std::cout << "Covariance: " << Cov.transpose() << std::endl; 
       this->setValue(DataElement::Covariance, Cov);
     }
     else
