@@ -1,0 +1,291 @@
+---
+
+# predefined Gaussian mixture model parameter
+
+#2D GMM with 2 components
+gmm_fixed_params:
+    weight: &gmm_weights [0.333, 0.333, 0.333]
+    mean: &gmm_means [0, 0, 0, 0, 0, 0]
+    std_dev: &gmm_std_devs [0.5,0,0,0.5, 5,0,0,5, 50,0,0,50]
+   
+# parameter for adaptive algorithms
+gmm_adaptive_params:
+    std_dev: &gmm_adapt_std 0.5
+    components: &gmm_adapt_comp 3
+    dir_conc: &gmm_adapt_conc 1.0
+    nw_dof: &gmm_adapt_dof 2.0
+    nw_scale: &gmm_adapt_scale 1e-4
+
+# error models that can be used
+errors:
+  gauss: &gauss
+    type: gauss
+      
+  dce: &dce
+    type: dce
+      
+  cdce: &cdce
+    type: cdce
+      
+  dcs: &dcs
+    type: dcs
+    parameter: 1e3
+      
+  sc: &sc
+    type: sc
+    parameter: 1e-2
+      
+  sm: &sm
+    type: gmm
+    mixture_type: sm
+    tuning_type: none
+    weight: *gmm_weights
+    mean: *gmm_means
+    std_dev: *gmm_std_devs
+      
+  mm: &mm
+    type: gmm
+    mixture_type: mm
+    tuning_type: none
+    weight: *gmm_weights
+    mean: *gmm_means
+    std_dev: *gmm_std_devs
+    
+  msm: &msm
+    type: gmm
+    mixture_type: msm
+    tuning_type: none
+    weight: *gmm_weights
+    mean: *gmm_means
+    std_dev: *gmm_std_devs
+      
+  sm_em: &sm_em
+    type: gmm
+    mixture_type: sm
+    tuning_type: em
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+
+  mm_em: &mm_em
+    type: gmm
+    mixture_type: mm
+    tuning_type: em
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    
+  msm_em: &msm_em
+    type: gmm
+    mixture_type: msm
+    tuning_type: em
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    
+  sm_em_map: &sm_em_map
+    type: gmm
+    mixture_type: sm
+    tuning_type: em_map
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+    
+  mm_em_map: &mm_em_map
+    type: gmm
+    mixture_type: mm
+    tuning_type: em_map
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+    
+  msm_em_map: &msm_em_map
+    type: gmm
+    mixture_type: msm
+    tuning_type: em_map
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+      
+  sm_vbi: &sm_vbi
+    type: gmm
+    mixture_type: sm
+    tuning_type: vbi
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+    
+  mm_vbi: &mm_vbi
+    type: gmm
+    mixture_type: mm
+    tuning_type: vbi
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+    
+  msm_vbi: &msm_vbi
+    type: gmm
+    mixture_type: msm
+    tuning_type: vbi
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+    
+  sm_vbi_full: &sm_vbi_full
+    type: gmm
+    mixture_type: sm
+    tuning_type: vbi_full
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+    
+  mm_vbi_full: &mm_vbi_full
+    type: gmm
+    mixture_type: mm
+    tuning_type: vbi_full
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+    
+  msm_vbi_full: &msm_vbi_full
+    type: gmm
+    mixture_type: msm
+    tuning_type: vbi_full
+    incremental:  false
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale  
+    
+  sm_vbi_full_inc: &sm_vbi_full_inc
+    type: gmm
+    mixture_type: sm
+    tuning_type: vbi_full
+    incremental:  true
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+    
+  mm_vbi_full_inc: &mm_vbi_full_inc
+    type: gmm
+    mixture_type: mm
+    tuning_type: vbi_full
+    incremental:  true
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+    
+  msm_vbi_full_inc: &msm_vbi_full_inc 
+    type: gmm
+    mixture_type: msm
+    tuning_type: vbi_full
+    incremental:  true
+    std_dev: *gmm_adapt_std
+    components: *gmm_adapt_comp
+    dir_conc: *gmm_adapt_conc
+    nw_dof: *gmm_adapt_dof
+    nw_scale: *gmm_adapt_scale
+
+# Sensors and models
+factors:
+    
+  odom: &odom
+    name: odom
+    type: odom2
+    error: *gauss
+    
+  loop: &loop
+    name: loop
+    type: loop2
+    threshold: 0.43
+    std_dev: 0.5
+    error: *msm_vbi_full_inc
+    
+# Graph solution
+solutions:
+
+  # full batch optimization
+  batch: &batch
+    solver_mode: batch
+    max_iterations: 500
+    max_time: 60.0
+    estimate_cov: true
+      
+  # full smoother without sliding window
+  smoother: &smoother
+    solver_mode: smoother
+    max_iterations: 500
+    max_time: 5.0
+    estimate_cov: true
+    
+  # smoother with a "set constant" window for real time purposes
+  smoother_rt: &smoother_rt
+    solver_mode: smoother_rt
+    max_iterations: 100
+    max_time: 1.0
+    window_length: 60.0
+    estimate_cov: true
+    
+  # smoother with sliding window and marginalization
+  window: &window
+    solver_mode: window
+    max_iterations: 500
+    max_time: 5.0
+    window_length: 120.0
+    estimate_cov: true
+    marginalize: true
+    
+  # kalman-filter-like estimator with marginalization
+  filter: &filter
+    solver_mode: filter
+    max_iterations: 1
+    max_time: 1.0
+    estimate_cov: true
+    
+  # do not run the solver (for debugging)
+  none: &none
+    solver_mode: none
+      
+architecture:
+  async: &async
+      is_async: true
+      async_rate: 1.0
+      
+  sync: &sync
+      is_async: false
+      sync_sensor: *loop
+      
+# concrete Configuration (only this config is used!)
+config:
+  solution: *batch
+  factors: [*odom, *loop]
+  graph: *async

@@ -1,0 +1,14 @@
+[submodule "externals/eigen"]
+	path = externals/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "externals/ceres-solver"]
+	path = externals/ceres-solver
+	url = https://ceres-solver.googlesource.com/ceres-solver
+[submodule "extern/pybind11"]
+	path = extern/pybind11
+	url = ../../pybind/pybind11
+	branch = stable
+[submodule "externals/pybind11"]
+	path = externals/pybind11
+	url = ../../pybind/pybind11
+	branch = stable
